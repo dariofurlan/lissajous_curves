@@ -54,7 +54,7 @@ class TableData {
 
     draw(sk) {
         //sk.noFill();
-        sk.rect(this.x - this.padding, this.y - this.padding, this.x + 2 * this.padding + this.edge, this.y + 2 * this.padding + this.edge);
+        // TODO draw a sort of a grid to display better
         if (!this.circle)
             return;
         this.circle.draw(sk);
