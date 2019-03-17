@@ -3,13 +3,11 @@ import './style.css';
 
 class Circle {
     constructor(x, y, edge, factor) {
+        console.log("circle _  x: " + x + " y: " + y + " edge: " + edge);
         this.x = x + edge / 2;
         this.y = y + edge / 2;
         this.edge = edge;
         this.factor = factor;
-        this.rad = 0;
-        this.steps = 60;
-        this.inc = ((2 * Math.PI) / this.factor) / this.steps;
         this.horiz = true;
     }
 
@@ -21,22 +19,21 @@ class Circle {
         return (this.edge / 2) * Math.cos(x / this.factor);
     }
 
-    draw(ctx) {
-        let alpha = this.rad - (Math.PI) * this.factor;
+    draw(ctx, alpha) {
+        alpha -= (Math.PI) * this.factor;
         let x = this.x + this.cos(alpha);
         let y = this.y + this.sin(alpha);
         this._x = x;
         this._y = y;
 
-/*        ctx.strokeWeight(3);
-        ctx.arc(this.x, this.y, this.edge, this.edge, -Math.PI, alpha / this.factor);*/
+        /*
+        ctx.strokeWeight(3);
+        ctx.arc(this.x, this.y, this.edge, this.edge, -Math.PI, alpha / this.factor);
+        */
 
-        // ctx.strokeWeight(10);
         ctx.beginPath();
-        ctx.arc(x, y, 10, 0, 2*Math.PI);
+        ctx.arc(x, y, 10, 0, 2 * Math.PI);
         ctx.fill();
-
-        // ctx.strokeWeight(1);
 
         ctx.beginPath();
         if (this.horiz) {
@@ -47,54 +44,55 @@ class Circle {
             ctx.lineTo(x + 1000, y);
         }
         ctx.stroke();
-
-        this.rad += this.inc;
-        if (this.rad > 2 * Math.PI * this.factor) {
-            this.rad = 0;
-        }
     }
 }
 
 class TableData {
     constructor(x, y, edge) {
         this.padding = 10;
-        this.x = x + this.padding;
-        this.y = y + this.padding;
-        this.edge = edge - 2 * this.padding;
+        this.x = x;
+        this.y = y;
+        this.edge = edge;
+        console.log("x: " + x + " y: " + y + " edge: " + edge);
     }
 
-    draw(ctx) {
-        //sk.noFill();
-        // TODO draw a sort of a grid to display better
+    draw(ctx, TEST) {
+        // ctx.strokeRect(this.x, this.y, this.edge, this.edge);
         if (!this.circle)
             return;
-        this.circle.draw(ctx);
+        this.circle.draw(ctx, TEST);
     }
 
     setCircle(factor) {
-        this.circle = new Circle(this.x, this.y, this.edge, factor);
+        this.circle = new Circle(this.x + this.padding, this.y + this.padding, this.edge - 2 * this.padding, factor);
     }
 }
 
 class Table {
     constructor(size, l) {
-        this.padding = 50;
-        this.factors = [1, 1.25, 1+1/3,1.5,1.75 , 2, 2.5, 3, 3.5, 4, 4.5]; // these changes the speed of the circle
-        size -= 2 * this.padding;
+        this.padding = size * 0.05;
+        this.factors = [1, 1.25, 1 + 1 / 3, 1.5, 1.75, 2, 2.5, 3, 3.5, 4, 4.5]; // these changes the speed of the circle
+        this.x = this.padding;
+        this.y = this.padding;
+        this.padded_size = size - 2 * this.padding;
+        this.l = l;
+
         this.grid = [];
         this.trails = [];
-        let edge = size / l;
+
+
+        let edge = this.padded_size / l;
         this.num_circles = l - 1;
-        for (let y=1; y<=this.num_circles; y++) {
+        for (let y = 1; y <= this.num_circles; y++) {
             this.trails[y] = [];
-            for (let x=1; x<=this.num_circles; x++) {
+            for (let x = 1; x <= this.num_circles; x++) {
                 this.trails[y][x] = [];
             }
         }
-        for (let y = this.padding, yy = 0; y < size; y += edge, yy++) {
+        for (let y = this.padding, yy = 0; y < this.padded_size; y += edge, yy++) {
             this.grid[yy] = [];
-            for (let x = this.padding, xx = 0; x < size; x += edge, xx++) {
-                this.grid[yy][xx] = new TableData(x, y, edge)
+            for (let x = this.padding, xx = 0; x < this.padded_size; x += edge, xx++) {
+                this.grid[yy][xx] = new TableData(x, y, edge);
             }
         }
         for (let i = 1; i <= this.num_circles; i++) {
@@ -105,23 +103,23 @@ class Table {
         }
     }
 
-    draw(ctx) {
-        this.grid.forEach(row => row.forEach(data => data.draw(ctx)));
-        // todo calculate collisions with all the lines and make a sort of a trace
-        return;
+    draw(ctx, TEST) {
+        ctx.strokeRect(this.x, this.y, this.padded_size, this.padded_size);
+        this.grid.forEach(row => row.forEach(data => data.draw(ctx, TEST)));
+
         for (let y = 1; y <= this.num_circles; y++) {
             for (let x = 1; x <= this.num_circles; x++) {
                 let {a, b} = this.intersection(this.grid[0][x].circle, this.grid[y][0].circle);
                 this.trails[y][x].push([a, b]);
-                if (this.trails[y][x].length>400) {
+                if (this.trails[y][x].length > 400) {
                     this.trails[y][x].shift();
                 }
-                ctx.beginPath();
-                ctx.moveTo(...this.trails[y][x][0]);
+                //ctx.moveTo(...this.trails[y][x][0]);
                 for (let n  in this.trails[y][x]) {
-                    ctx.lineTo(this.trails[y][x][n].x, this.trails[y][x][n].y);
+                    ctx.beginPath();
+                    ctx.arc(this.trails[y][x][n].x, this.trails[y][x][n].y, 2, 0, 2 * Math.PI);
+                    ctx.fill();
                 }
-                ctx.stroke();
             }
         }
         //throw new Error("AAA");
@@ -132,6 +130,10 @@ class Table {
         let b = horiz._y;
         return {a, b};
     }
+
+    update(size) {
+        this.grid.forEach(row => row.forEach(data=>data.update(size)))
+    }
 }
 
 function Animation() {
@@ -139,7 +141,7 @@ function Animation() {
     const l = 5;
     const table = new Table(size, l);
 
-    const canvas = document.createElement("canvas");
+    const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext('2d');
     document.body.appendChild(canvas);
 
@@ -148,27 +150,38 @@ function Animation() {
 
     let updateSize = () => {
         let bounds = canvas.getBoundingClientRect();
-        let winh = window.innerHeight-2*bounds.y;
-        let winw = window.innerWidth-2*bounds.x;
+        let winh = window.innerHeight - 2 * bounds.y;
+        let winw = window.innerWidth - 2 * bounds.x;
         size = Math.min(winh, winw);
         canvas.width = size;
         canvas.height = size;
+        table.update(size);
     };
-    // window.onresize = window.onload = updateSize;
+    window.onresize = window.onload = updateSize;
 
     let frames = 0;
     let sec = 0;
+    let fps = 0;
+    let rad = 0;
+    const N_STEPS = 80;
+    let step = 2 * Math.PI / N_STEPS;
     let loop = (timestamp) => {
-        // console.log(Math.floor(timestamp/1000));
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        ctx.clearRect(0,0, canvas.width, canvas.height);
-        table.draw(ctx);
-        let now = Math.floor(timestamp/1000);
+        table.draw(ctx, rad);
+
+
         frames++;
+        rad+=step;
+
+        let now = Math.floor(timestamp / 1000);
+        ctx.font = '1em Arial';
+        ctx.fillStyle = "grey";
+        ctx.fillText(fps, 5, 20);
+        ctx.fillStyle = "black";
         if (now !== sec) {
-            ctx.font = '48px serif';
-            ctx.fillText("FPS: "+frames, 10, 50);
-            console.log(frames);
+            // console.log("sec: "+sec+" fps: "+frames);
+            fps = frames;
             frames = 0;
             sec = now;
         }
