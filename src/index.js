@@ -21,24 +21,32 @@ class Circle {
         return (this.edge / 2) * Math.cos(x / this.factor);
     }
 
-    draw(sk) {
+    draw(ctx) {
         let alpha = this.rad - (Math.PI) * this.factor;
         let x = this.x + this.cos(alpha);
         let y = this.y + this.sin(alpha);
         this._x = x;
         this._y = y;
 
-        sk.strokeWeight(3);
-        sk.arc(this.x, this.y, this.edge, this.edge, -Math.PI, alpha / this.factor);
+/*        ctx.strokeWeight(3);
+        ctx.arc(this.x, this.y, this.edge, this.edge, -Math.PI, alpha / this.factor);*/
 
-        sk.strokeWeight(10);
-        sk.point(x, y);
-        sk.strokeWeight(1);
+        // ctx.strokeWeight(10);
+        ctx.beginPath();
+        ctx.arc(x, y, 10, 0, 2*Math.PI);
+        ctx.fill();
 
-        if (this.horiz)
-            sk.line(x, y, x, y + 1000);
-        else
-            sk.line(x, y, x + 1000, y);
+        // ctx.strokeWeight(1);
+
+        ctx.beginPath();
+        if (this.horiz) {
+            ctx.moveTo(x, y);
+            ctx.lineTo(x, y + 1000);
+        } else {
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + 1000, y);
+        }
+        ctx.stroke();
 
         this.rad += this.inc;
         if (this.rad > 2 * Math.PI * this.factor) {
@@ -55,12 +63,12 @@ class TableData {
         this.edge = edge - 2 * this.padding;
     }
 
-    draw(sk) {
+    draw(ctx) {
         //sk.noFill();
         // TODO draw a sort of a grid to display better
         if (!this.circle)
             return;
-        this.circle.draw(sk);
+        this.circle.draw(ctx);
     }
 
     setCircle(factor) {
@@ -97,20 +105,23 @@ class Table {
         }
     }
 
-    draw(sk) {
-        this.grid.forEach(row => row.forEach(data => data.draw(sk)));
+    draw(ctx) {
+        this.grid.forEach(row => row.forEach(data => data.draw(ctx)));
         // todo calculate collisions with all the lines and make a sort of a trace
+        return;
         for (let y = 1; y <= this.num_circles; y++) {
             for (let x = 1; x <= this.num_circles; x++) {
                 let {a, b} = this.intersection(this.grid[0][x].circle, this.grid[y][0].circle);
-                this.trails[y][x].push(sk.createVector(a, b));
+                this.trails[y][x].push([a, b]);
                 if (this.trails[y][x].length>400) {
                     this.trails[y][x].shift();
                 }
+                ctx.beginPath();
+                ctx.moveTo(...this.trails[y][x][0]);
                 for (let n  in this.trails[y][x]) {
-                    sk.strokeWeight(3);
-                    sk.point(this.trails[y][x][n].x, this.trails[y][x][n].y);
+                    ctx.lineTo(this.trails[y][x][n].x, this.trails[y][x][n].y);
                 }
+                ctx.stroke();
             }
         }
         //throw new Error("AAA");
@@ -123,6 +134,53 @@ class Table {
     }
 }
 
+function Animation() {
+    let size = 900;
+    const l = 5;
+    const table = new Table(size, l);
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext('2d');
+    document.body.appendChild(canvas);
+
+    canvas.width = 900;
+    canvas.height = 900;
+
+    let updateSize = () => {
+        let bounds = canvas.getBoundingClientRect();
+        let winh = window.innerHeight-2*bounds.y;
+        let winw = window.innerWidth-2*bounds.x;
+        size = Math.min(winh, winw);
+        canvas.width = size;
+        canvas.height = size;
+    };
+    // window.onresize = window.onload = updateSize;
+
+    let frames = 0;
+    let sec = 0;
+    let loop = (timestamp) => {
+        // console.log(Math.floor(timestamp/1000));
+
+        ctx.clearRect(0,0, canvas.width, canvas.height);
+        table.draw(ctx);
+        let now = Math.floor(timestamp/1000);
+        frames++;
+        if (now !== sec) {
+            ctx.font = '48px serif';
+            ctx.fillText("FPS: "+frames, 10, 50);
+            console.log(frames);
+            frames = 0;
+            sec = now;
+        }
+        window.requestAnimationFrame(loop);
+    };
+
+    this.start = () => {
+        loop()
+    };
+}
+
+new Animation().start();
 
 let sketch = (sk) => {
     let size = 900;
@@ -144,4 +202,4 @@ let sketch = (sk) => {
     //table.draw(sk);
 };
 
-new p5(sketch);
+// new p5(sketch);
