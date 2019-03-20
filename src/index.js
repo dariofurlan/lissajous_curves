@@ -3,9 +3,8 @@ import './style.css';
 
 class Circle {
     constructor(x, y, edge, factor) {
-        console.log("circle _  x: " + x + " y: " + y + " edge: " + edge);
-        this.x = x + edge / 2;
-        this.y = y + edge / 2;
+        this.circle_x = x + edge / 2;
+        this.circle_y = y + edge / 2;
         this.edge = edge;
         this.factor = factor;
         this.horiz = true;
@@ -20,40 +19,44 @@ class Circle {
     }
 
     draw(ctx, alpha) {
-        alpha -= (Math.PI) * this.factor;
-        let x = this.x + this.cos(alpha);
-        let y = this.y + this.sin(alpha);
-        this._x = x;
-        this._y = y;
-
-        /*
-        ctx.strokeWeight(3);
-        ctx.arc(this.x, this.y, this.edge, this.edge, -Math.PI, alpha / this.factor);
-        */
-
-        ctx.beginPath();
-        ctx.arc(x, y, 10, 0, 2 * Math.PI);
-        ctx.fill();
-
-        ctx.beginPath();
-        if (this.horiz) {
-            ctx.moveTo(x, y);
-            ctx.lineTo(x, y + 1000);
-        } else {
-            ctx.moveTo(x, y);
-            ctx.lineTo(x + 1000, y);
+        if (Circle.drawCircle) {
+            ctx.beginPath();
+            ctx.arc(this.circle_x, this.circle_y, this.edge / 2, -Math.PI, ((alpha / this.factor) % (2 * Math.PI)) - Math.PI);
+            ctx.stroke();
         }
-        ctx.stroke();
+
+        alpha -= (Math.PI) * this.factor;
+        let x = this.circle_x + this.cos(alpha);
+        let y = this.circle_y + this.sin(alpha);
+        this._x = Math.round(x * 100) / 100;
+        this._y = Math.round(y * 100) / 100;
+
+        if (Circle.drawDot) {
+            ctx.beginPath();
+            ctx.arc(x, y, 7, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+
+        if (Circle.drawLine) {
+            ctx.beginPath();
+            if (this.horiz) {
+                ctx.moveTo(x, y);
+                ctx.lineTo(x, y + 1000);
+            } else {
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + 1000, y);
+            }
+            ctx.stroke();
+        }
     }
 }
 
 class TableData {
     constructor(x, y, edge) {
-        this.padding = 10;
+        this.padding = 15;
         this.x = x;
         this.y = y;
         this.edge = edge;
-        console.log("x: " + x + " y: " + y + " edge: " + edge);
     }
 
     draw(ctx, TEST) {
@@ -69,20 +72,19 @@ class TableData {
 }
 
 class Table {
-    constructor(size, l) {
-        this.padding = size * 0.05;
-        this.factors = [1, 1.25, 1 + 1 / 3, 1.5, 1.75, 2, 2.5, 3, 3.5, 4, 4.5]; // these changes the speed of the circle
+    constructor(size, factors) {
+        this.padding = Math.floor(size * 0.03);
+        this.factors = factors;
         this.x = this.padding;
         this.y = this.padding;
         this.padded_size = size - 2 * this.padding;
-        this.l = l;
+        this.num_circles = factors.length;
+        this.l = this.num_circles + 1;
 
         this.grid = [];
         this.trails = [];
 
-
-        let edge = this.padded_size / l;
-        this.num_circles = l - 1;
+        let edge = this.padded_size / this.l;
         for (let y = 1; y <= this.num_circles; y++) {
             this.trails[y] = [];
             for (let x = 1; x <= this.num_circles; x++) {
@@ -104,42 +106,114 @@ class Table {
     }
 
     draw(ctx, TEST) {
-        ctx.strokeRect(this.x, this.y, this.padded_size, this.padded_size);
+        // ctx.strokeRect(this.x, this.y, this.padded_size, this.padded_size);
         this.grid.forEach(row => row.forEach(data => data.draw(ctx, TEST)));
 
-        for (let y = 1; y <= this.num_circles; y++) {
-            for (let x = 1; x <= this.num_circles; x++) {
-                let {a, b} = this.intersection(this.grid[0][x].circle, this.grid[y][0].circle);
-                this.trails[y][x].push([a, b]);
-                if (this.trails[y][x].length > 400) {
-                    this.trails[y][x].shift();
-                }
-                //ctx.moveTo(...this.trails[y][x][0]);
-                for (let n  in this.trails[y][x]) {
-                    ctx.beginPath();
-                    ctx.arc(this.trails[y][x][n].x, this.trails[y][x][n].y, 2, 0, 2 * Math.PI);
-                    ctx.fill();
+        let trails_loop = () => {
+            this.reduced = true;
+            for (let y = 1; y < this.trails.length; y++) {
+                for (let x = 1; x < this.trails[y].length; x++) {
+                    let trail = this.trails[y][x];
+
+                    // trail.forEach((value, index, array) => array.forEach(()))
+                    console.log("before: " + trail.length);
+                    console.log(JSON.stringify(trail));
+                    for (let i = 0; i < trail.length-1; i++) {
+                        for (let j = i + 1; j < trail.length; j++) {
+                            if (trail[j][0] === trail[i][0] && trail[j][1] === trail[i][1]) {
+                                // console.log("duplicated: "+JSON.stringify([trail[j],trail[i]],null, 4));
+                                trail.splice(j, 1);
+                            }
+                        }
+                    }
+                    console.log(JSON.stringify(trail));
+                    console.log("after: " + trail.length);
+                    break;
                 }
             }
+            // setTimeout(trails_loop, 2000)
+        };
+
+        if (this.trails[1][1].length >= 500 || this.reduced) {
+            for (let y = 1; y <= this.num_circles; y++) {
+                for (let x = 1; x <= this.num_circles; x++) {
+                    let c_x = this.grid[0][x].circle._x;
+                    let c_y = this.grid[y][0].circle._y;
+
+                    ctx.beginPath();
+                    ctx.arc(c_x, c_y, 4, 0, 2 * Math.PI);
+                    ctx.fill();
+
+                    ctx.beginPath();
+                    ctx.moveTo(...this.trails[y][x][0]);
+                    this.trails[y][x].forEach(point => ctx.lineTo(...point));
+                    ctx.stroke();
+                }
+            }
+        } else {
+            for (let y = 1; y <= this.num_circles; y++) {
+                for (let x = 1; x <= this.num_circles; x++) {
+                    let c_x = this.grid[0][x].circle._x;
+                    let c_y = this.grid[y][0].circle._y;
+                    this.trails[y][x].push([c_x, c_y]);
+
+                    ctx.beginPath();
+                    ctx.arc(c_x, c_y, 4, 0, 2 * Math.PI);
+                    ctx.fill();
+
+                    ctx.beginPath();
+                    ctx.moveTo(...this.trails[y][x][0]);
+                    this.trails[y][x].forEach(point => ctx.lineTo(...point));
+                    ctx.stroke();
+                }
+            }
+            if (this.trails[1][1].length === 499) setTimeout(trails_loop);
         }
         //throw new Error("AAA");
     }
-
-    intersection(vert, horiz) {
-        let a = vert._x;
-        let b = horiz._y;
-        return {a, b};
-    }
-
-    update(size) {
-        this.grid.forEach(row => row.forEach(data=>data.update(size)))
-    }
 }
 
-function Animation() {
+function Animation(factors) {
+    let settings = () => {
+        this.circle_line = document.getElementById('circle_line');
+        Circle.drawLine = this.circle_line.checked = true;
+        this.circle_line.onchange = (event) => {
+            Circle.drawLine = event.target.checked;
+        };
+
+        this.circle_circle = document.getElementById('circle_circle');
+        Circle.drawCircle = this.circle_circle.checked = true;
+        this.circle_circle.onchange = (event) => {
+            Circle.drawCircle = event.target.checked;
+        };
+
+        this.circle_dot = document.getElementById('circle_dot');
+        Circle.drawDot = this.circle_dot.checked = true;
+        this.circle_dot.onchange = (event) => {
+            Circle.drawDot = event.target.checked;
+        };
+
+        this.fps = document.getElementById('fps');
+        Animation.drawFPS = this.fps.checked = true;
+        this.fps.onchange = (event) => {
+            Animation.drawFPS = event.target.checked;
+        };
+
+        this.animation_stop = document.getElementById('animation_stop');
+        this.running = true;
+        this.animation_stop.onclick = () => {
+            if (this.running)
+                this.running = false;
+            else {
+                this.running = true;
+                this.start();
+            }
+        };
+    };
+    settings();
+
     let size = 900;
-    const l = 5;
-    const table = new Table(size, l);
+    const table = new Table(size, factors);
 
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext('2d');
@@ -155,9 +229,7 @@ function Animation() {
         size = Math.min(winh, winw);
         canvas.width = size;
         canvas.height = size;
-        table.update(size);
     };
-    window.onresize = window.onload = updateSize;
 
     let frames = 0;
     let sec = 0;
@@ -165,54 +237,60 @@ function Animation() {
     let rad = 0;
     const N_STEPS = 80;
     let step = 2 * Math.PI / N_STEPS;
-    let loop = (timestamp) => {
+
+    let animation_loop = (timestamp) => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-
         table.draw(ctx, rad);
-
-
         frames++;
-        rad+=step;
-
+        rad += step;
         let now = Math.floor(timestamp / 1000);
-        ctx.font = '1em Arial';
-        ctx.fillStyle = "grey";
-        ctx.fillText(fps, 5, 20);
-        ctx.fillStyle = "black";
+        if (Animation.drawFPS) {
+            ctx.font = '1.2em Courier New';
+            if (fps <= 50)
+                ctx.fillStyle = "red";
+            else if (fps <= 55)
+                ctx.fillStyle = "orange";
+            else
+                ctx.fillStyle = "green";
+            ctx.fillText(fps, 5, 20);
+            ctx.fillStyle = "black";
+        }
         if (now !== sec) {
-            // console.log("sec: "+sec+" fps: "+frames);
+            console.log("sec: " + sec + " fps: " + frames);
             fps = frames;
             frames = 0;
             sec = now;
         }
-        window.requestAnimationFrame(loop);
+        if (this.running)
+            window.requestAnimationFrame(animation_loop);
+    };
+    let trails_loop = () => {
+
+        for (let y = 1; y < table.trails.length; y++) {
+            for (let x = 1; x < table.trails[y].length; x++) {
+                let trail = table.trails[y][x];
+
+                // trail.forEach((value, index, array) => array.forEach(()))
+                console.log("before: " + trail.length);
+                for (let i = 0; i < trail.length; i++) {
+                    for (let j = i + 1; j < trail.length; j++) {
+                        if (trail[i] === undefined || trail[j] === undefined)
+                            continue;
+                        if (trail[j][0] === trail[i][0] && trail[j][1] === trail[i][1]) {
+                            trail.splice(j, 1);
+                        }
+                    }
+                }
+                console.log("after: " + trail.length);
+            }
+        }
+        setTimeout(trails_loop, 2000)
     };
 
     this.start = () => {
-        loop()
+        animation_loop();
     };
 }
 
-new Animation().start();
-
-let sketch = (sk) => {
-    let size = 900;
-    let c = 0;
-    const l = 5;
-    const table = new Table(size, l);
-
-    sk.setup = () => {
-        sk.createCanvas(size, size);
-        sk.frameRate(60);
-    };
-
-    sk.draw = () => {
-        sk.clear();
-        table.draw(sk);
-
-    };
-
-    //table.draw(sk);
-};
-
-// new p5(sketch);
+// TODO alongside animation do a process that every second or prefixed period, cleans the path generated by te lines
+new Animation([1, 1.2, 1.5,2]).start();
