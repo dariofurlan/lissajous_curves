@@ -5,11 +5,17 @@
     <title>Playing with Circles</title>
 </head>
 <body>
-<canvas id="canvas"></canvas>
-<form>
+<div><canvas id="canvas"></canvas></div>
+<div>
     Circle: <input type="checkbox" id="circle_circle"/>
     Lines: <input type="checkbox" id="circle_line"/>
-    FPS: <input type="checkbox" id="fps"/>;
-</form>
+    Dot: <input type="checkbox" id="circle_dot"/>
+    FPS: <input type="checkbox" id="fps"/>
+    <button id="animation_stop"></button>
+    <button id="animation_backward"></button>
+    <button id="animation_forward"></button>
+    radians:<span id="radians_indicator"></span>
+    steps:<span id="steps_indicator"></span>
+</div>
 <script type="text/javascript" src="bundle.js"></script></body>
 </html>
