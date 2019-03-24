@@ -20,12 +20,12 @@ class Circle {
     draw(ctx, alpha) {
         if (Circle.drawCircle) {
             ctx.beginPath();
-            ctx.arc(this.circle_x, this.circle_y, this.edge / 2, 0, ((alpha / this.factor) % (2 * Math.PI)));
-            // ctx.arc(this.circle_x, this.circle_y, this.edge / 2, -Math.PI, ((alpha / this.factor) % (2 * Math.PI)) - Math.PI);
+            //ctx.arc(this.circle_x, this.circle_y, this.edge / 2, 0, ((alpha / this.factor) % (2 * Math.PI)));
+            ctx.arc(this.circle_x, this.circle_y, this.edge / 2, -Math.PI, ((alpha / this.factor) % (2 * Math.PI)) - Math.PI);
             ctx.stroke();
         }
 
-        // alpha -= (Math.PI) * this.factor;
+        alpha -= (Math.PI) * this.factor;
         let x = this.circle_x + this.cos(alpha);
         let y = this.circle_y + this.sin(alpha);
         this._x = Math.round(x * 100) / 100;
@@ -111,11 +111,6 @@ class Table {
         // ctx.strokeRect(this.x, this.y, this.padded_size, this.padded_size);
         this.grid.forEach(row => row.forEach(data => data.draw(ctx, rad)));
     }
-
-    reset() {
-        this.trails.forEach((row, y) => row.forEach((trail, x) => this.trails[y][x] = []));
-        console.log(JSON.stringify(this.trails));
-    }
 }
 
 function lcm_two_numbers(x, y) {
@@ -129,7 +124,6 @@ function lcm_two_numbers(x, y) {
     }
     return (!x || !y) ? 0 : ((x * y) / gcd_two_numbers(x,y))/Math.pow(10,n);
 }
-
 function gcd_two_numbers(x, y) {
     let t;
     while (y) {
@@ -140,9 +134,12 @@ function gcd_two_numbers(x, y) {
     return x;
 }
 
+// console.log("A: "+lcm_two_numbers(2.2,2.2));
+
+
 function Settings() {
     this.circle_line = document.getElementById('circle_line');
-    Circle.drawLine = this.circle_line.checked = true;
+    Circle.drawLine = this.circle_line.checked = false;
     this.circle_line.onchange = (event) => {
         Circle.drawLine = event.target.checked;
     };
@@ -223,13 +220,12 @@ function Animation(factors) {
     let frames=0, sec = 0, fps = 0, rad_counter = 0, step_counter = 0;
 
     const limits = [];
-    limits.length = factors.length;
-    limits.fill([]);
     let max = 0;
-    for (let y = 0; y < factors.length; y++) {
-        for (let x = 0; x < factors.length; x++) {
-            let fx = table.grid[0][x + 1].circle.factor * 2;
-            let fy = table.grid[y + 1][0].circle.factor * 2;
+    for (let y = 1; y <= factors.length; y++) {
+        limits[y] = [];
+        for (let x = 1; x <= factors.length; x++) {
+            let fx = table.grid[0][x].circle.factor * 2;
+            let fy = table.grid[y][0].circle.factor * 2;
             let mcm = lcm_two_numbers(fx, fy);
             mcm *= Math.PI;
             if (mcm > max)
@@ -237,11 +233,12 @@ function Animation(factors) {
             limits[y][x] = mcm;
         }
     }
+    // console.log("LIMITS: \n "+ JSON.stringify(limits));
     console.log("Simulation Restarts at: "+ (max/(Math.PI)));
 
     const MAX_LIMIT = max;//todo
-    const N_STEPS = 80;
-    const step = 2 * Math.PI / N_STEPS;
+    const NUM_STEPS = 120;
+    const step = 2 * Math.PI / NUM_STEPS;
 
     let animation_step = () => {
         step_counter++;
@@ -251,6 +248,7 @@ function Animation(factors) {
         ctx.strokeStyle = "white";
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         table.draw(ctx, rad_counter);
+        draw_trail(ctx);
         if (rad_counter >= MAX_LIMIT)
             this.reset();
     };
@@ -286,21 +284,29 @@ function Animation(factors) {
             window.requestAnimationFrame(animation_loop);
     };
     const trails = [];
-    trails.length = factors.length;
+    /*trails.length = factors.length+1;
     trails.fill([]);
     trails.forEach(arr=> {
-        arr.length = factors.length;
+        arr.length = factors.length+1;
         arr.fill([]);
-    });
+    });*/
+    for (let y = 1; y <= factors.length; y++) {
+        trails[y] = [];
+        for (let x = 1; x <= factors.length; x++) {
+            trails[y][x] = [];
+        }
+    }
     let draw_trail = (ctx) => {
         for (let y = 1; y <= factors.length; y++) {
             for (let x = 1; x <= factors.length; x++) {
                 let c_x = table.grid[0][x].circle._x;
                 let c_y = table.grid[y][0].circle._y;
-                trails[y][x].push([c_x, c_y]);
+                // console.log(x,y,limits[y-1][x-1]);
+                if (!(trails[y][x].length>(limits[y][x]*NUM_STEPS)/(2*Math.PI))+3)
+                    trails[y][x].push([c_x, c_y]);
 
-                ctx.strokeStyle = this.grid[y][x].color;
-                ctx.fillStyle = this.grid[y][x].color;
+                ctx.strokeStyle = table.grid[y][x].color;
+                ctx.fillStyle = table.grid[y][x].color;
                 ctx.lineWidth = 2;
 
 
@@ -309,11 +315,12 @@ function Animation(factors) {
                 ctx.fill();
 
                 ctx.beginPath();
-                ctx.moveTo(...this.trails[y][x][0]);
-                this.trails[y][x].forEach(point => ctx.lineTo(...point));
+                ctx.moveTo(...trails[y][x][0]);
+                trails[y][x].forEach(point => ctx.lineTo(...point));
                 ctx.stroke();
             }
         }
+        // console.log(trails[1][1].length);
     };
     let calc_radians = (r) => {
         let pi = Math.floor(r / Math.PI);
@@ -360,10 +367,10 @@ function Animation(factors) {
         fps = 0;
         rad_counter = 0;
         step_counter = 0;
-        table.reset();
+        trails.forEach((row, y) => row.forEach((trail, x) => trails[y][x] = []));
     };
 }
 
 // TODO alongside animation do a process that every second or prefixed period, cleans the path generated by te lines
 // TODO  the trails loop with this approach is just a bodge, calculate the length of each trail and then stop pushing after that
-new Animation([1, 1.1, 1.2, 1.3, 1.4, 1.5]);
+new Animation([1, 1.2, 1+ 1/4]);
