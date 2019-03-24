@@ -38,6 +38,8 @@ class Circle {
         }
 
         if (Circle.drawLine) {
+            let tmp = ctx.lineWidth;
+            ctx.lineWidth = 1;
             ctx.beginPath();
             if (this.horiz) {
                 ctx.moveTo(x, y);
@@ -47,6 +49,7 @@ class Circle {
                 ctx.lineTo(x + 1000, y);
             }
             ctx.stroke();
+            ctx.lineWidth = tmp;
         }
     }
 }
@@ -116,14 +119,15 @@ class Table {
 function lcm_two_numbers(x, y) {
     if ((typeof x !== 'number') || (typeof y !== 'number'))
         return false;
-    let n=0;
+    let n = 0;
     while (x % 1 !== 0 || y % 1 !== 0) {
         x *= 10;
         y *= 10;
         n++;
     }
-    return (!x || !y) ? 0 : ((x * y) / gcd_two_numbers(x,y))/Math.pow(10,n);
+    return (!x || !y) ? 0 : ((x * y) / gcd_two_numbers(x, y)) / Math.pow(10, n);
 }
+
 function gcd_two_numbers(x, y) {
     let t;
     while (y) {
@@ -134,10 +138,30 @@ function gcd_two_numbers(x, y) {
     return x;
 }
 
-// console.log("A: "+lcm_two_numbers(2.2,2.2));
-
-
 function Settings() {
+    this.element = [];
+
+    this.show_all = () => {
+
+    };
+
+    this.hide_all = () => {
+
+    };
+
+    this.show_settings = document.getElementById('show_settings');
+    this.show_settings.onclick = () => {
+        if (this.div_settings.style.display === 'inline-block') {
+            this.show_settings.innerText = "show settings";
+            this.div_settings.style.display = "none";
+        } else {
+            this.show_settings.innerText = "hide settings";
+            this.div_settings.style.display = "inline-block";
+        }
+    };
+
+    this.div_settings = document.getElementById('settings');
+
     this.circle_line = document.getElementById('circle_line');
     Circle.drawLine = this.circle_line.checked = false;
     this.circle_line.onchange = (event) => {
@@ -157,14 +181,14 @@ function Settings() {
     };
 
     this.fps = document.getElementById('fps');
-    Animation.drawFPS = this.fps.checked = true;
+    Animation.drawFPS = this.fps.checked = false;
     this.fps.onchange = (event) => {
         Animation.drawFPS = event.target.checked;
     };
 
     this.animation_stop = document.getElementById('animation_stop');
     Animation.running = false;
-    this.animation_stop.innerText = "START";
+    this.animation_stop.innerText = "PAUSE";
 
     this.animation_forward = document.getElementById('animation_forward');
     this.animation_forward.innerHTML = ">";
@@ -190,10 +214,9 @@ function Animation(factors) {
     };
     settings.animation_stop.onclick = () => {
         if (Animation.running) {
-            Animation.running = false;
+            this.stop();
             settings.animation_stop.innerText = "START";
         } else {
-            Animation.running = true;
             this.start();
             settings.animation_stop.innerText = "PAUSE";
         }
@@ -204,7 +227,6 @@ function Animation(factors) {
 
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext('2d');
-
     canvas.width = 900;
     canvas.height = 900;
 
@@ -217,7 +239,7 @@ function Animation(factors) {
         canvas.height = size;
     };
 
-    let frames=0, sec = 0, fps = 0, rad_counter = 0, step_counter = 0;
+    let frames = 0, sec = 0, fps = 0, rad_counter = 0, step_counter = 0;
 
     const limits = [];
     let max = 0;
@@ -233,27 +255,41 @@ function Animation(factors) {
             limits[y][x] = mcm;
         }
     }
+
+    const trails = [];
+    const f_trails = [];
+    for (let y = 1; y <= factors.length; y++) {
+        trails[y] = [];
+        f_trails[y] = [];
+        for (let x = 1; x <= factors.length; x++) {
+            trails[y][x] = [];
+            f_trails[y][x] = false;
+        }
+    }
+
     // console.log("LIMITS: \n "+ JSON.stringify(limits));
-    console.log("Simulation Restarts at: "+ (max/(Math.PI)));
+    console.log("Simulation Restarts at: " + (max / (Math.PI)));
 
     const MAX_LIMIT = max;//todo
-    const NUM_STEPS = 120;
-    const step = 2 * Math.PI / NUM_STEPS;
+    const NUM_STEPS = 80;
+    const STEP_SIZE = 2 * Math.PI / NUM_STEPS;
 
     let animation_step = () => {
         step_counter++;
-        rad_counter += step;
+        rad_counter += STEP_SIZE;
         calc_radians(rad_counter);
         ctx.fillStyle = "white";
         ctx.strokeStyle = "white";
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         table.draw(ctx, rad_counter);
         draw_trail(ctx);
-        if (rad_counter >= MAX_LIMIT)
+        if (rad_counter >= MAX_LIMIT) {
             this.reset();
+            Animation.finished_once = true;
+        }
     };
     let animation_backward = () => {
-        rad_counter -= step;
+        rad_counter -= STEP_SIZE;
         step_counter--;
         calc_radians(rad_counter);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -269,7 +305,7 @@ function Animation(factors) {
             else if (fps <= 55)
                 ctx.fillStyle = "orange";
             else
-                ctx.fillStyle = "green";
+                ctx.fillStyle = "white";
             ctx.fillText(fps, 5, 20);
             ctx.fillStyle = "black";
         }
@@ -283,83 +319,77 @@ function Animation(factors) {
         if (Animation.running)
             window.requestAnimationFrame(animation_loop);
     };
-    const trails = [];
-    /*trails.length = factors.length+1;
-    trails.fill([]);
-    trails.forEach(arr=> {
-        arr.length = factors.length+1;
-        arr.fill([]);
-    });*/
-    for (let y = 1; y <= factors.length; y++) {
-        trails[y] = [];
-        for (let x = 1; x <= factors.length; x++) {
-            trails[y][x] = [];
-        }
-    }
     let draw_trail = (ctx) => {
-        for (let y = 1; y <= factors.length; y++) {
-            for (let x = 1; x <= factors.length; x++) {
-                let c_x = table.grid[0][x].circle._x;
-                let c_y = table.grid[y][0].circle._y;
-                // console.log(x,y,limits[y-1][x-1]);
-                if (!(trails[y][x].length>(limits[y][x]*NUM_STEPS)/(2*Math.PI))+3)
-                    trails[y][x].push([c_x, c_y]);
+        if (Animation.finished_once) {
+            for (let y = 1; y <= factors.length; y++) {
+                for (let x = 1; x <= factors.length; x++) {
+                    let st = step_counter % trails[y][x].length;
 
-                ctx.strokeStyle = table.grid[y][x].color;
-                ctx.fillStyle = table.grid[y][x].color;
-                ctx.lineWidth = 2;
+                    let now = trails[y][x][st];
+                    let c_x = now[0];
+                    let c_y = now[1];
+
+                    ctx.strokeStyle = table.grid[y][x].color;
+                    ctx.fillStyle = table.grid[y][x].color;
+                    ctx.lineWidth = 2;
+
+                    ctx.beginPath();
+                    ctx.arc(c_x, c_y, 4, 0, 2 * Math.PI);
+                    ctx.fill();
+
+                    ctx.beginPath();
+                    ctx.moveTo(...trails[y][x][0]);
+                    for (let i = 1; i < ((step_counter > st) ? trails[y][x].length : st); i++) {
+                        ctx.lineTo(...trails[y][x][i]);
+                    }
+                    ctx.stroke();
+                }
+            }
+        } else {
+            for (let y = 1; y <= factors.length; y++) {
+                for (let x = 1; x <= factors.length; x++) {
+                    let c_x = table.grid[0][x].circle._x;
+                    let c_y = table.grid[y][0].circle._y;
+                    // console.log(x,y,limits[y-1][x-1]);
+                    if (!f_trails[y][x])
+                        if (!(trails[y][x].length > ((limits[y][x] * NUM_STEPS) / (2 * Math.PI)) + 1))
+                            trails[y][x].push([c_x, c_y]);
+                        else
+                            f_trails[y][x] = true;
+
+                    ctx.strokeStyle = table.grid[y][x].color;
+                    ctx.fillStyle = table.grid[y][x].color;
+                    ctx.lineWidth = 2;
 
 
-                ctx.beginPath();
-                ctx.arc(c_x, c_y, 4, 0, 2 * Math.PI);
-                ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(c_x, c_y, 4, 0, 2 * Math.PI);
+                    ctx.fill();
 
-                ctx.beginPath();
-                ctx.moveTo(...trails[y][x][0]);
-                trails[y][x].forEach(point => ctx.lineTo(...point));
-                ctx.stroke();
+                    ctx.beginPath();
+                    ctx.moveTo(...trails[y][x][0]);
+                    trails[y][x].forEach(point => ctx.lineTo(...point));
+                    ctx.stroke();
+                }
             }
         }
-        // console.log(trails[1][1].length);
     };
     let calc_radians = (r) => {
         let pi = Math.floor(r / Math.PI);
-        let pi_half = Math.floor((r - Math.PI * pi) / (Math.PI / 2));
-        let pi_third = Math.floor((r - Math.PI * pi) / (Math.PI / 3));
-        let pi_fourth = Math.floor((r - Math.PI * pi) / (Math.PI / 4));
-        let pi_sixth = Math.floor((r - Math.PI * pi) / (Math.PI / 3));
         let pi_tenth = Math.floor((r - Math.PI * pi) / (Math.PI / 10));
         const simbol = "&pi;";
         settings.radians_indicator.innerHTML = pi + simbol + " " + pi_tenth + "/" + 10 + simbol;
         settings.steps_indicator.innerText = step_counter;
     };
 
-    let trails_loop = () => {
-        for (let y = 1; y < table.trails.length; y++) {
-            for (let x = 1; x < table.trails[y].length; x++) {
-                let trail = table.trails[y][x];
-
-                console.log("before: " + trail.length);
-                console.log(JSON.stringify(trail));
-                for (let i = 0; i < trail.length - 1; i++) {
-                    for (let j = trail.length; j > i; j--) {
-                        if (trail[j][0] === trail[i][0] && trail[j][1] === trail[i][1]) {
-                            trail.splice(j, 1);
-                        }
-                    }
-                }
-                console.log(JSON.stringify(trail));
-                console.log("after: " + trail.length);
-                break;
-            }
-        }
-        // setTimeout(trails_loop, 2000)
-    };
 
     this.start = () => {
+        Animation.running = true;
         animation_loop();
     };
-
+    this.stop = () => {
+        Animation.running = false;
+    };
     this.reset = () => {
         console.log("Animation Started");
         frames = 0;
@@ -367,10 +397,12 @@ function Animation(factors) {
         fps = 0;
         rad_counter = 0;
         step_counter = 0;
-        trails.forEach((row, y) => row.forEach((trail, x) => trails[y][x] = []));
+        // trails.forEach((row, y) => row.forEach((trail, x) => trails[y][x] = []));
     };
 }
 
-// TODO alongside animation do a process that every second or prefixed period, cleans the path generated by te lines
-// TODO  the trails loop with this approach is just a bodge, calculate the length of each trail and then stop pushing after that
-new Animation([1, 1.2, 1+ 1/4]);
+// TODO user customization?
+// TODO explaination thorugh animations
+
+const valid_factors = [1, 1.1, 1.2, 1.25, 1.3, 1.4, 1.5, 1.6, 1.7, 1.9, 1.9, 2];
+new Animation([4,3,2,1]).start();

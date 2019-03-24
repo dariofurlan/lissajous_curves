@@ -11,6 +11,7 @@ module.exports = {
         new HtmlWebpackPlugin({
             template: "src/index.html"
         }),
+        new CopyWebpackPlugin([{from:"src/favicon-32x32.png"},{from:"src/favicon-16x16.png"},{from:"src/favicon.ico"}])
     ],
     output: {
         filename: 'bundle.js',

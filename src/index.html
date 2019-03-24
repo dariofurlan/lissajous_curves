@@ -2,20 +2,26 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="theme-color" content="#000000" />
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
     <title>Playing with Circles</title>
 </head>
 <body>
-<canvas id="canvas"></canvas>
-<div class="settings">
-    Circle: <input type="checkbox" id="circle_circle"/>
-    Lines: <input type="checkbox" id="circle_line"/>
-    Dot: <input type="checkbox" id="circle_dot"/>
-    FPS: <input type="checkbox" id="fps"/>
-    <button id="animation_stop"></button>
-    <button id="animation_backward"></button>
-    <button id="animation_forward"></button>
-    radians:<span id="radians_indicator"></span>
-    steps:<span id="steps_indicator"></span>
+<div class="canvas_container"><canvas id="canvas"></canvas></div>
+<div class="footer">
+    <div class="settings_show"><span class="button-not-button" id="show_settings">show settings</span></div>
+    <div class="settings_box" hidden="hidden" id="settings">
+        Circle:<input type="checkbox" id="circle_circle"/>
+        Lines:<input type="checkbox" id="circle_line"/>
+        Dot:<input type="checkbox" id="circle_dot"/>
+        FPS:<input type="checkbox" id="fps"/>
+        <button id="animation_stop"></button>
+        <button id="animation_backward"></button>
+        <button id="animation_forward"></button>
+        radians:<span id="radians_indicator"></span>
+        steps:<span id="steps_indicator"></span>
+    </div>
 </div>
 </body>
 </html>
