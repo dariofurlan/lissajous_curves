@@ -151,16 +151,16 @@ function Settings() {
 
     this.show_settings = document.getElementById('show_settings');
     this.show_settings.onclick = () => {
-        if (this.div_settings.style.display === 'inline-block') {
+        if (this.div_settings.style.display === 'block') {
             this.show_settings.innerText = "show settings";
             this.div_settings.style.display = "none";
         } else {
             this.show_settings.innerText = "hide settings";
-            this.div_settings.style.display = "inline-block";
+            this.div_settings.style.display = "block";
         }
     };
 
-    this.div_settings = document.getElementById('settings');
+    this.div_settings = document.getElementById('div_settings');
 
     this.circle_line = document.getElementById('circle_line');
     Circle.drawLine = this.circle_line.checked = false;
@@ -222,13 +222,13 @@ function Animation(factors) {
         }
     };
 
-    let size = 900;
+    let size = 800;
     const table = new Table(size, factors);
 
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext('2d');
-    canvas.width = 900;
-    canvas.height = 900;
+    canvas.width = size;
+    canvas.height = size;
 
     let updateSize = () => {
         let bounds = canvas.getBoundingClientRect();

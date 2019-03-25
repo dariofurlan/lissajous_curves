@@ -1,7 +1,7 @@
 {
-  "name": "playing_with_circles",
+  "name": "lissajous_curves",
   "version": "1.0.0",
-  "description": "playing_with_circles",
+  "description": "",
   "main": "src/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -11,14 +11,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/iofurlan/playing_with_circles.git"
+    "url": "git+https://github.com/iofurlan/lissajous_curves.git"
   },
   "author": "Dario Furlan",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/iofurlan/playing_with_circles/issues"
+    "url": "https://github.com/iofurlan/lissajous_curves/issues"
   },
-  "homepage": "https://github.com/iofurlan/playing_with_circles#readme",
+  "homepage": "https://github.com/iofurlan/lissajous_curves#readme",
   "devDependencies": {
     "babel-core": "^6.26.3",
     "babel-loader": "^8.0.5",

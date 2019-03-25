@@ -1,8 +1,5 @@
 canvas {
     /*border: 1px solid white;*/
-
-    width: 900px;
-    height: 900px;
     margin: 0 auto;
 }
 .canvas_container {
@@ -28,7 +25,10 @@ button:hover {
     background-color: white;
     color: black;
 }
-.button-not-button {
+.footer {
+    width: 100%;
+}
+#show_settings {
     font-size: 1em;
     color: darkgray;
     text-decoration: underline;
@@ -40,19 +40,15 @@ button:hover {
     margin: 0;
     cursor: pointer;
 }
-.footer {
+.div_show_settings {
     width: 100%;
+    display: block;
+    margin: 0 auto;
 }
 .settings_box {
-    width: 80%;
-    margin: 0 10px;
+    width: 100%;
+    margin: 0;
     display: none;
     text-align: center;
     height: auto;
-}
-.settings_show {
-    height: 20%;
-    display: inline-block;
-    margin: 0 auto;
-    float: left;
 }
