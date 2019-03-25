@@ -78,23 +78,24 @@ class Table {
     constructor(size, factors) {
         this.factors = factors;
         this.colors = ['#ffee58', '#f06292', '#ff7043', '#9ccc65', '#4fc3f7'];
-        this.padded_size = size;
+        this.size = size;
         this.num_circles = factors.length;
         this.l = this.num_circles + 1;
 
         this.grid = [];
         this.trails = [];
 
-        let edge = this.padded_size / this.l;
+        let edge = this.size / this.l;
+        this.grid_edge_size = edge;
         for (let y = 1; y <= this.num_circles; y++) {
             this.trails[y] = [];
             for (let x = 1; x <= this.num_circles; x++) {
                 this.trails[y][x] = [];
             }
         }
-        for (let y = 0, yy = 0; y < this.padded_size; y += edge, yy++) {
+        for (let y = 0, yy = 0; y < this.size; y += edge, yy++) {
             this.grid[yy] = [];
-            for (let x = 0, xx = 0; x < this.padded_size; x += edge, xx++) {
+            for (let x = 0, xx = 0; x < this.size; x += edge, xx++) {
                 this.grid[yy][xx] = new TableData(x, y, edge);
                 this.grid[yy][xx].color = this.colors[Math.floor(Math.random() * this.colors.length)];
             }
@@ -202,6 +203,62 @@ class Animation {
         this.canvas.style.margin = margin + "px";
         this.canvas.width = this.size;
         this.canvas.height = this.size;
+        window.onload = window.onresize = () => {
+            let canvas_bounds = this.canvas.getBoundingClientRect();
+            let w = window.innerWidth - canvas_bounds.x;
+            let h = window.innerHeight - canvas_bounds.y;
+            let THRESHOLD = 800;
+            if (w > THRESHOLD && h > THRESHOLD)
+                this.size = THRESHOLD;
+            else {
+                let tmp = Math.min(w, h);
+                this.size = tmp * 0.9;
+            }
+            this.canvas.width = this.canvas.heigth = this.size;
+            // TODO update size of the tables and rest...
+            console.log({w, h});
+        };
+        this.canvas.onclick = (evt) => {
+            let canvas_bounds = this.canvas.getBoundingClientRect();
+            let x = evt.clientX - canvas_bounds.x;
+            let y = evt.clientY - canvas_bounds.y;
+
+            let grid_y = Math.floor(y / this.table.grid_edge_size);
+            let grid_x = Math.floor(x / this.table.grid_edge_size);
+
+            if ((grid_y === 0 && grid_x > 0) || (grid_x === 0 && grid_y > 0)) {
+                // TODO do this at the beginning or recalculate all lengths, basically do a RESTART animation
+                this.stop(() => {
+                    let circle = this.table.grid[grid_y][grid_x].circle;
+
+                    let new_factor = 1;
+                    circle.factor = new_factor;
+
+                    if (circle.horiz) {
+                        for (let y = 1; y <= this.factors.length; y++) {
+                            this.trails[y][grid_x] = [];
+                            this.f_trails[y][grid_x] = false;
+                            let new_limit = lcm_two_numbers(new_factor, this.table.grid[y][0].circle.factor);
+                            this.limits[y][grid_x] = new_limit;
+                            if (new_limit > this.MAX_LIMIT)
+                                this.MAX_LIMIT = new_limit;
+                        }
+                    } else {
+                        for (let x = 1; x <= this.factors.length; x++) {
+                            this.trails[grid_y][x] = [];
+                            this.f_trails[grid_y][x] = false;
+                            let new_limit = lcm_two_numbers(new_factor, this.table.grid[0][x].circle.factor);
+                            this.limits[grid_y][x] = new_limit;
+                            if (new_limit > this.MAX_LIMIT)
+                                this.MAX_LIMIT = new_limit;
+                        }
+                    }
+
+                    Animation.finished_once = false;
+                    console.log(circle);
+                });
+            }
+        };
 
         this.settings.animation_forward.onclick = () => {
             this.animation_step();
@@ -236,7 +293,7 @@ class Animation {
             }
         }
 
-        this.trails = [];
+        this.trails = [];// TODO set the limits's length to the lcm of the factors so that theres no need of extracheck in the draw_trail loop, at least try
         this.f_trails = [];
         for (let y = 1; y <= this.factors.length; y++) {
             this.trails[y] = [];
@@ -267,7 +324,7 @@ class Animation {
 
         this.draw_trail(this.ctx);
         if (this.rad_counter >= this.MAX_LIMIT) {
-            this.reset();
+            this.soft_reset();
             Animation.finished_once = true;
         }
     }
@@ -284,7 +341,6 @@ class Animation {
     animation_loop(timestamp) {
         this.animation_step();
         this.frames++;
-        let ctx = this.ctx;
         if (Animation.drawFPS) { // TODO draw fps only if different from previous
             this.ctx.font = '1.2em Courier New';
             if (this.fps <= 50)
@@ -308,7 +364,7 @@ class Animation {
     }
 
     draw_trail() {
-        if (Animation.finished_once) {
+        /*if (Animation.finished_once) {
             for (let y = 1; y <= this.factors.length; y++) {
                 for (let x = 1; x <= this.factors.length; x++) {
                     let st = this.step_counter % this.trails[y][x].length;
@@ -333,34 +389,34 @@ class Animation {
                     this.ctx.stroke();
                 }
             }
-        } else {
-            for (let y = 1; y <= this.factors.length; y++) {
-                for (let x = 1; x <= this.factors.length; x++) {
-                    let c_x = this.table.grid[0][x].circle._x;
-                    let c_y = this.table.grid[y][0].circle._y;
-                    // console.log(x,y,limits[y-1][x-1]);
-                    if (!this.f_trails[y][x])
-                        if (!(this.trails[y][x].length > ((this.limits[y][x] * this.NUM_STEPS) / (2 * Math.PI)) + 1))
-                            this.trails[y][x].push([c_x, c_y]);
-                        else
-                            this.f_trails[y][x] = true;
+        } else {*/
+        for (let y = 1; y <= this.factors.length; y++) {
+            for (let x = 1; x <= this.factors.length; x++) {
+                let c_x = this.table.grid[0][x].circle._x;
+                let c_y = this.table.grid[y][0].circle._y;
 
-                    this.ctx.strokeStyle = this.table.grid[y][x].color;
-                    this.ctx.fillStyle = this.table.grid[y][x].color;
-                    this.ctx.lineWidth = 2;
+                if (!this.f_trails[y][x])
+                    if (!(this.trails[y][x].length > ((this.limits[y][x] * this.NUM_STEPS) / (2 * Math.PI)) + 1)) // TODO change this control so that only checks thelength of the trail arrayyy
+                        this.trails[y][x].push([c_x, c_y]);
+                    else
+                        this.f_trails[y][x] = true;
+
+                this.ctx.strokeStyle = this.table.grid[y][x].color;
+                this.ctx.fillStyle = this.table.grid[y][x].color;
+                this.ctx.lineWidth = 2;
 
 
-                    this.ctx.beginPath();
-                    this.ctx.arc(c_x, c_y, 4, 0, 2 * Math.PI);
-                    this.ctx.fill();
+                this.ctx.beginPath();
+                this.ctx.arc(c_x, c_y, 4, 0, 2 * Math.PI);
+                this.ctx.fill();
 
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(...this.trails[y][x][0]);
-                    this.trails[y][x].forEach(point => this.ctx.lineTo(...point));
-                    this.ctx.stroke();
-                }
+                this.ctx.beginPath();
+                this.ctx.moveTo(...this.trails[y][x][0]);
+                this.trails[y][x].forEach(point => this.ctx.lineTo(...point));
+                this.ctx.stroke();
             }
         }
+        // }
     }
 
     calc_radians() {
@@ -376,11 +432,12 @@ class Animation {
         this.animation_loop();
     }
 
-    stop() {
+    stop(cb) {
         this.running = false;
+        window.requestAnimationFrame(cb);
     }
 
-    reset() {
+    soft_reset() {
         console.log("Animation Started");
         this.frames = 0;
         this.sec = 0;
@@ -388,6 +445,10 @@ class Animation {
         this.rad_counter = 0;
         this.step_counter = 0;
     };
+
+    hard_reset() {
+
+    }
 }
 
 // TODO user customization?
