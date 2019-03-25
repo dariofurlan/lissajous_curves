@@ -56,7 +56,7 @@ class Circle {
 
 class TableData {
     constructor(x, y, edge) {
-        this.padding = 15;
+        this.padding = Math.floor(edge * 0.1);
         this.x = x;
         this.y = y;
         this.edge = edge;
@@ -76,12 +76,9 @@ class TableData {
 
 class Table {
     constructor(size, factors) {
-        this.padding = Math.floor(size * 0.03);
         this.factors = factors;
         this.colors = ['#ffee58', '#f06292', '#ff7043', '#9ccc65', '#4fc3f7'];
-        this.x = this.padding;
-        this.y = this.padding;
-        this.padded_size = size - 2 * this.padding;
+        this.padded_size = size;
         this.num_circles = factors.length;
         this.l = this.num_circles + 1;
 
@@ -95,9 +92,9 @@ class Table {
                 this.trails[y][x] = [];
             }
         }
-        for (let y = this.padding, yy = 0; y < this.padded_size; y += edge, yy++) {
+        for (let y = 0, yy = 0; y < this.padded_size; y += edge, yy++) {
             this.grid[yy] = [];
-            for (let x = this.padding, xx = 0; x < this.padded_size; x += edge, xx++) {
+            for (let x = 0, xx = 0; x < this.padded_size; x += edge, xx++) {
                 this.grid[yy][xx] = new TableData(x, y, edge);
                 this.grid[yy][xx].color = this.colors[Math.floor(Math.random() * this.colors.length)];
             }
@@ -139,16 +136,6 @@ function gcd_two_numbers(x, y) {
 }
 
 function Settings() {
-    this.element = [];
-
-    this.show_all = () => {
-
-    };
-
-    this.hide_all = () => {
-
-    };
-
     this.show_settings = document.getElementById('show_settings');
     this.show_settings.onclick = () => {
         if (this.div_settings.style.display === 'block') {
@@ -187,7 +174,6 @@ function Settings() {
     };
 
     this.animation_stop = document.getElementById('animation_stop');
-    Animation.running = false;
     this.animation_stop.innerText = "PAUSE";
 
     this.animation_forward = document.getElementById('animation_forward');
@@ -203,201 +189,204 @@ function Settings() {
     this.steps_indicator.innerText = "";
 }
 
-function Animation(factors) {
-    let settings = new Settings();
+class Animation {
+    constructor(factors) {
+        this.settings = new Settings();
+        this.factors = factors;
+        this.size = 800;
+        this.table = new Table(this.size, this.factors);
 
-    settings.animation_forward.onclick = () => {
-        animation_step();
-    };
-    settings.animation_backward.onclick = () => {
-        animation_backward();
-    };
-    settings.animation_stop.onclick = () => {
-        if (Animation.running) {
-            this.stop();
-            settings.animation_stop.innerText = "START";
-        } else {
-            this.start();
-            settings.animation_stop.innerText = "PAUSE";
+        this.canvas = document.getElementById("canvas");
+        this.ctx = canvas.getContext('2d');
+        let margin = Math.floor(this.size * 0.03);
+        this.canvas.style.margin = margin + "px";
+        this.canvas.width = this.size;
+        this.canvas.height = this.size;
+
+        this.settings.animation_forward.onclick = () => {
+            this.animation_step();
+        };
+        this.settings.animation_backward.onclick = () => {
+            this.animation_backward();
+        };
+        this.settings.animation_stop.onclick = () => {
+            if (this.running) {
+                this.stop();
+                this.settings.animation_stop.innerText = "START";
+            } else {
+                this.start();
+                this.settings.animation_stop.innerText = "PAUSE";
+            }
+        };
+
+        this.frames = 0, this.sec = 0, this.fps = 0, this.rad_counter = 0, this.step_counter = 0;
+
+        this.limits = [];
+        let max = 0;
+        for (let y = 1; y <= this.factors.length; y++) {
+            this.limits[y] = [];
+            for (let x = 1; x <= this.factors.length; x++) {
+                let fx = this.table.grid[0][x].circle.factor * 2;
+                let fy = this.table.grid[y][0].circle.factor * 2;
+                let mcm = lcm_two_numbers(fx, fy);
+                mcm *= Math.PI;
+                if (mcm > max)
+                    max = mcm;
+                this.limits[y][x] = mcm;
+            }
         }
-    };
 
-    let size = 800;
-    const table = new Table(size, factors);
-
-    const canvas = document.getElementById("canvas");
-    const ctx = canvas.getContext('2d');
-    canvas.width = size;
-    canvas.height = size;
-
-    let updateSize = () => {
-        let bounds = canvas.getBoundingClientRect();
-        let winh = window.innerHeight - 2 * bounds.y;
-        let winw = window.innerWidth - 2 * bounds.x;
-        size = Math.min(winh, winw);
-        canvas.width = size;
-        canvas.height = size;
-    };
-
-    let frames = 0, sec = 0, fps = 0, rad_counter = 0, step_counter = 0;
-
-    const limits = [];
-    let max = 0;
-    for (let y = 1; y <= factors.length; y++) {
-        limits[y] = [];
-        for (let x = 1; x <= factors.length; x++) {
-            let fx = table.grid[0][x].circle.factor * 2;
-            let fy = table.grid[y][0].circle.factor * 2;
-            let mcm = lcm_two_numbers(fx, fy);
-            mcm *= Math.PI;
-            if (mcm > max)
-                max = mcm;
-            limits[y][x] = mcm;
+        this.trails = [];
+        this.f_trails = [];
+        for (let y = 1; y <= this.factors.length; y++) {
+            this.trails[y] = [];
+            this.f_trails[y] = [];
+            for (let x = 1; x <= this.factors.length; x++) {
+                this.trails[y][x] = [];
+                this.f_trails[y][x] = false;
+            }
         }
+
+        // console.log("LIMITS: \n "+ JSON.stringify(limits));
+        console.log("Simulation Restarts at: " + (max / (Math.PI)));
+
+        this.MAX_LIMIT = max;//todo
+        this.NUM_STEPS = 80;
+        this.STEP_SIZE = 2 * Math.PI / this.NUM_STEPS;
     }
 
-    const trails = [];
-    const f_trails = [];
-    for (let y = 1; y <= factors.length; y++) {
-        trails[y] = [];
-        f_trails[y] = [];
-        for (let x = 1; x <= factors.length; x++) {
-            trails[y][x] = [];
-            f_trails[y][x] = false;
-        }
-    }
+    animation_step() {
+        this.step_counter++;
+        this.rad_counter += this.STEP_SIZE;
+        this.calc_radians();
 
-    // console.log("LIMITS: \n "+ JSON.stringify(limits));
-    console.log("Simulation Restarts at: " + (max / (Math.PI)));
+        this.ctx.clearRect(0, 0, canvas.width, canvas.height);
+        this.ctx.fillStyle = "white";
+        this.ctx.strokeStyle = "white";
+        this.table.draw(this.ctx, this.rad_counter);
 
-    const MAX_LIMIT = max;//todo
-    const NUM_STEPS = 80;
-    const STEP_SIZE = 2 * Math.PI / NUM_STEPS;
-
-    let animation_step = () => {
-        step_counter++;
-        rad_counter += STEP_SIZE;
-        calc_radians(rad_counter);
-        ctx.fillStyle = "white";
-        ctx.strokeStyle = "white";
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        table.draw(ctx, rad_counter);
-        draw_trail(ctx);
-        if (rad_counter >= MAX_LIMIT) {
+        this.draw_trail(this.ctx);
+        if (this.rad_counter >= this.MAX_LIMIT) {
             this.reset();
             Animation.finished_once = true;
         }
-    };
-    let animation_backward = () => {
-        rad_counter -= STEP_SIZE;
-        step_counter--;
-        calc_radians(rad_counter);
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        table.draw(ctx, rad_counter);
-    };
-    let animation_loop = (timestamp) => {
-        animation_step();
-        frames++;
-        if (Animation.drawFPS) {
-            ctx.font = '1.2em Courier New';
-            if (fps <= 50)
-                ctx.fillStyle = "red";
-            else if (fps <= 55)
-                ctx.fillStyle = "orange";
+    }
+
+    animation_backward() {
+        this.rad_counter -= this.STEP_SIZE;
+        this.step_counter--;
+        this.calc_radians();
+
+        this.ctx.clearRect(0, 0, canvas.width, canvas.height);
+        this.table.draw(this.ctx, this.rad_counter);
+    }
+
+    animation_loop(timestamp) {
+        this.animation_step();
+        this.frames++;
+        let ctx = this.ctx;
+        if (Animation.drawFPS) { // TODO draw fps only if different from previous
+            this.ctx.font = '1.2em Courier New';
+            if (this.fps <= 50)
+                this.ctx.fillStyle = "red";
+            else if (this.fps <= 55)
+                this.ctx.fillStyle = "orange";
             else
-                ctx.fillStyle = "white";
-            ctx.fillText(fps, 5, 20);
-            ctx.fillStyle = "black";
+                this.ctx.fillStyle = "white";
+            this.ctx.fillText(this.fps, 5, 20);
+            this.ctx.fillStyle = "black";
         }
         let now = Math.floor(timestamp / 1000);
-        if (now !== sec) {
-            console.log("sec: " + sec + " fps: " + frames);
-            fps = frames;
-            frames = 0;
-            sec = now;
+        if (now !== this.sec) {
+            console.log("sec: " + this.sec + " fps: " + this.frames);
+            this.fps = this.frames;
+            this.frames = 0;
+            this.sec = now;
         }
-        if (Animation.running)
-            window.requestAnimationFrame(animation_loop);
-    };
-    let draw_trail = (ctx) => {
-        if (Animation.finished_once) {
-            for (let y = 1; y <= factors.length; y++) {
-                for (let x = 1; x <= factors.length; x++) {
-                    let st = step_counter % trails[y][x].length;
+        if (this.running)
+            window.requestAnimationFrame(this.animation_loop.bind(this));
+    }
 
-                    let now = trails[y][x][st];
+    draw_trail() {
+        if (Animation.finished_once) {
+            for (let y = 1; y <= this.factors.length; y++) {
+                for (let x = 1; x <= this.factors.length; x++) {
+                    let st = this.step_counter % this.trails[y][x].length;
+
+                    let now = this.trails[y][x][st];
                     let c_x = now[0];
                     let c_y = now[1];
 
-                    ctx.strokeStyle = table.grid[y][x].color;
-                    ctx.fillStyle = table.grid[y][x].color;
-                    ctx.lineWidth = 2;
+                    this.ctx.strokeStyle = this.table.grid[y][x].color;
+                    this.ctx.fillStyle = this.table.grid[y][x].color;
+                    this.ctx.lineWidth = 2;
 
-                    ctx.beginPath();
-                    ctx.arc(c_x, c_y, 4, 0, 2 * Math.PI);
-                    ctx.fill();
+                    this.ctx.beginPath();
+                    this.ctx.arc(c_x, c_y, 4, 0, 2 * Math.PI);
+                    this.ctx.fill();
 
-                    ctx.beginPath();
-                    ctx.moveTo(...trails[y][x][0]);
-                    for (let i = 1; i < ((step_counter > st) ? trails[y][x].length : st); i++) {
-                        ctx.lineTo(...trails[y][x][i]);
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(...this.trails[y][x][0]);
+                    for (let i = 1; i < ((this.step_counter > st) ? this.trails[y][x].length : st); i++) {
+                        this.ctx.lineTo(...this.trails[y][x][i]);
                     }
-                    ctx.stroke();
+                    this.ctx.stroke();
                 }
             }
         } else {
-            for (let y = 1; y <= factors.length; y++) {
-                for (let x = 1; x <= factors.length; x++) {
-                    let c_x = table.grid[0][x].circle._x;
-                    let c_y = table.grid[y][0].circle._y;
+            for (let y = 1; y <= this.factors.length; y++) {
+                for (let x = 1; x <= this.factors.length; x++) {
+                    let c_x = this.table.grid[0][x].circle._x;
+                    let c_y = this.table.grid[y][0].circle._y;
                     // console.log(x,y,limits[y-1][x-1]);
-                    if (!f_trails[y][x])
-                        if (!(trails[y][x].length > ((limits[y][x] * NUM_STEPS) / (2 * Math.PI)) + 1))
-                            trails[y][x].push([c_x, c_y]);
+                    if (!this.f_trails[y][x])
+                        if (!(this.trails[y][x].length > ((this.limits[y][x] * this.NUM_STEPS) / (2 * Math.PI)) + 1))
+                            this.trails[y][x].push([c_x, c_y]);
                         else
-                            f_trails[y][x] = true;
+                            this.f_trails[y][x] = true;
 
-                    ctx.strokeStyle = table.grid[y][x].color;
-                    ctx.fillStyle = table.grid[y][x].color;
-                    ctx.lineWidth = 2;
+                    this.ctx.strokeStyle = this.table.grid[y][x].color;
+                    this.ctx.fillStyle = this.table.grid[y][x].color;
+                    this.ctx.lineWidth = 2;
 
 
-                    ctx.beginPath();
-                    ctx.arc(c_x, c_y, 4, 0, 2 * Math.PI);
-                    ctx.fill();
+                    this.ctx.beginPath();
+                    this.ctx.arc(c_x, c_y, 4, 0, 2 * Math.PI);
+                    this.ctx.fill();
 
-                    ctx.beginPath();
-                    ctx.moveTo(...trails[y][x][0]);
-                    trails[y][x].forEach(point => ctx.lineTo(...point));
-                    ctx.stroke();
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(...this.trails[y][x][0]);
+                    this.trails[y][x].forEach(point => this.ctx.lineTo(...point));
+                    this.ctx.stroke();
                 }
             }
         }
-    };
-    let calc_radians = (r) => {
-        let pi = Math.floor(r / Math.PI);
-        let pi_tenth = Math.floor((r - Math.PI * pi) / (Math.PI / 10));
+    }
+
+    calc_radians() {
+        let pi = Math.floor(this.rad_counter / Math.PI);
+        let pi_tenth = Math.floor((this.rad_counter - Math.PI * pi) / (Math.PI / 10));
         const simbol = "&pi;";
-        settings.radians_indicator.innerHTML = pi + simbol + " " + pi_tenth + "/" + 10 + simbol;
-        settings.steps_indicator.innerText = step_counter;
-    };
+        this.settings.radians_indicator.innerHTML = pi + simbol + "+" + pi_tenth + "/" + 10 + simbol;
+        this.settings.steps_indicator.innerText = this.step_counter;
+    }
 
+    start() {
+        this.running = true;
+        this.animation_loop();
+    }
 
-    this.start = () => {
-        Animation.running = true;
-        animation_loop();
-    };
-    this.stop = () => {
-        Animation.running = false;
-    };
-    this.reset = () => {
+    stop() {
+        this.running = false;
+    }
+
+    reset() {
         console.log("Animation Started");
-        frames = 0;
-        sec = 0;
-        fps = 0;
-        rad_counter = 0;
-        step_counter = 0;
-        // trails.forEach((row, y) => row.forEach((trail, x) => trails[y][x] = []));
+        this.frames = 0;
+        this.sec = 0;
+        this.fps = 0;
+        this.rad_counter = 0;
+        this.step_counter = 0;
     };
 }
 
@@ -405,4 +394,4 @@ function Animation(factors) {
 // TODO explaination thorugh animations
 
 const valid_factors = [1, 1.1, 1.2, 1.25, 1.3, 1.4, 1.5, 1.6, 1.7, 1.9, 1.9, 2];
-new Animation([4,3,2,1]).start();
+new Animation([1, 2, 3, 4]).start();

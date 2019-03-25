@@ -2,6 +2,9 @@ canvas {
     /*border: 1px solid white;*/
     margin: 0 auto;
 }
+canvas:hover {
+    cursor: pointer;
+}
 .canvas_container {
     width:100%;
     display: block;
