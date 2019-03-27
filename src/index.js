@@ -434,7 +434,8 @@ class Animation {
 
     stop(cb) {
         this.running = false;
-        window.requestAnimationFrame(cb);
+        if (cb)
+            window.requestAnimationFrame(cb);
     }
 
     soft_reset() {
