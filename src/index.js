@@ -4,11 +4,17 @@ function lcm_two_numbers(x, y) {
     if ((typeof x !== 'number') || (typeof y !== 'number'))
         return false;
     let n = 0;
-    while (x % 1 !== 0 || y % 1 !== 0) {
+    // console.log(x, y);
+    while ((x % 1 !== 0 || y % 1 !== 0) && n < 2) {
         x *= 10;
         y *= 10;
         n++;
     }
+    x = Math.floor(x);
+    y = Math.floor(y);
+    /*console.log(x, y);
+    console.log(gcd_two_numbers(x, y));
+    console.log(Math.pow(10, n));*/
     return (!x || !y) ? 0 : ((x * y) / gcd_two_numbers(x, y)) / Math.pow(10, n);
 }
 
@@ -22,6 +28,13 @@ function gcd_two_numbers(x, y) {
     return x;
 }
 
+function round_radians(rad) {
+    let pi = Math.floor(rad / Math.PI);
+    let pi_tenth = Math.floor((rad - Math.PI * pi) / (Math.PI / 10));
+    const simbol = "π";
+    return ((pi !== 0) ? '+' + pi + simbol : '') + ((pi_tenth !== 0) ? '+' + ((pi_tenth !== 1) ? pi_tenth : '') + simbol + '/' + 10 : '');
+}
+
 class Curve {
     constructor(x, y, edge) {
         this.padding = Math.floor(edge * 0.1);
@@ -32,6 +45,7 @@ class Curve {
         this.factor = null;
         this.header = false;
         this.is_y = true;
+        this.predrawn = false;
         this.color = "white";
 
         // TODO calculate the length of the shape given all the params (A, W, Phase) for the functions
@@ -75,10 +89,12 @@ class Curve {
     }
 
     reset() {
-        this.curve_period = lcm_two_numbers(this.Wx, this.Wy) * 2 * Math.PI;
+        this.period_x = 2 / this.Wx;
+        this.period_y = 2 / this.Wy;
+        this.curve_period = lcm_two_numbers(this.period_x, this.period_y) * Math.PI;
         this.curve_shape = [];
         this.factor = this.Wx / this.Wy;
-        console.log("eq: " + this.get_equation_string() + " period: " + Math.floor(this.curve_period * 10 / Math.PI) / 10);
+        // console.log("eq: " + this.get_equation_string());
         // TODO  reset the figure_shape array and recalculate the end of the drawn figure
     }
 
@@ -94,9 +110,10 @@ class Curve {
         return this.Az * Math.sin((x * this.Wz) + this.PHz)
     }
 
-    draw(ctx, t) {
-        let x = this.start_x + this.x(t);
-        let y = this.start_y + this.y(t);
+    draw(ctx, rad, step) {
+        // if step is rad is under the period it means that the animation just started
+        let x = this.start_x + this.x(rad);
+        let y = this.start_y + this.y(rad);
         // let z = this.start_z + this.z(t);
 
         x = Math.round(x * 100) / 100;
@@ -134,39 +151,42 @@ class Curve {
             ctx.lineWidth = tmp;
         }
 
-        this.draw_trail(ctx, t);
+        this.draw_trail(ctx, rad, step);
     }
 
-    draw_trail(ctx, t) {
+    draw_trail(ctx, t, step) {
         if (t > this.curve_period) {
+            // redraw all the circle
             ctx.beginPath();
             ctx.moveTo(...this.curve_shape[0]);
             this.curve_shape.forEach(point => ctx.lineTo(...point));
             ctx.stroke();
+            this.predrawn = true;
             return;
         }
 
-        this.curve_shape.push([this._x, this._y]);
+        if (!this.predrawn) {
+            this.curve_shape.push([this._x, this._y]);
 
-        ctx.beginPath();
-        ctx.moveTo(...this.curve_shape[0]);
-        this.curve_shape.forEach(point => ctx.lineTo(...point));
-        ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(...this.curve_shape[0]);
+            this.curve_shape.forEach(point => ctx.lineTo(...point));
+            ctx.stroke();
+        } else {
+            ctx.beginPath();
+            ctx.moveTo(...this.curve_shape[0]);
+            for (let i = 1; i < step; i++)
+                ctx.lineTo(...this.curve_shape[i]);
+            ctx.stroke();
+        }
     }
 
     get_equation_string() {
-        let calc = (rad) => {
-            let pi = Math.floor(rad / Math.PI);
-            let pi_fourth = Math.floor((rad - Math.PI * pi) / (Math.PI / 2));
-            const simbol = "π";
-            return ((pi !== 0) ? '+' + pi : '') + ((pi_fourth !== 0) ? '+' + ((pi_fourth !== 1) ? pi_fourth : '') + simbol + '/' + 2 : '');
-        };
-
-        let x_eq = "x = " + this.Ax + "*sin(" + this.Wx + "t" + calc(this.PHx) + ")";
-        let y_eq = "y = " + this.Ay + "*sin(" + this.Wy + "t" + calc(this.PHy) + ")";
+        let x_eq = "x = " + Math.round(this.Ax * 1000) / 1000 + "*sin(" + Math.round(this.Wx * 1000) / 1000 + "t" + round_radians(this.PHx) + ")";
+        let y_eq = "y = " + Math.round(this.Ay * 1000) / 1000 + "*sin(" + Math.round(this.Wy * 1000) / 1000 + "t" + round_radians(this.PHy) + ")";
         // let z_eq = "z = " + this.Az + "*sin(" + this.Wz + "t" + calc(this.PHz) + ")";
 
-        return x_eq + " " + y_eq;
+        return x_eq + " " + y_eq + " period: " + round_radians(this.curve_period);
     }
 }
 
@@ -179,16 +199,9 @@ class Table {
         this.l = this.num_circles + 1;
 
         this.grid = [];
-        this.trails = [];
 
         let edge = this.size / this.l;
         this.grid_edge_size = edge;
-        for (let y = 1; y <= this.num_circles; y++) {
-            this.trails[y] = [];
-            for (let x = 1; x <= this.num_circles; x++) {
-                this.trails[y][x] = [];
-            }
-        }
         for (let y = 0, yy = 0; y < this.size; y += edge, yy++) {
             this.grid[yy] = [];
             for (let x = 0, xx = 0; x < this.size; x += edge, xx++) {
@@ -201,21 +214,23 @@ class Table {
 
         // TODO set the "header" circles and then propagate to rows and columns
         for (let i = 1; i <= this.num_circles; i++) {
+            let factor = 1 / factors[i - 1];
+
             let circ_x = this.grid[0][i];
             circ_x.header = "x";
             circ_x.color = "#FFFFFF";
-            circ_x.set_eq_x(null, factors[i - 1]);
-            circ_x.set_eq_y(null, factors[i - 1]);
+            circ_x.set_eq_x(null, factor);
+            circ_x.set_eq_y(null, factor);
 
             let circ_y = this.grid[i][0];
             circ_y.header = "y";
             circ_y.color = "#FFFFFF";
-            circ_y.set_eq_x(null, factors[i - 1]);
-            circ_y.set_eq_y(null, factors[i - 1]);
+            circ_y.set_eq_x(null, factor);
+            circ_y.set_eq_y(null, factor);
         }
 
-        for (let y = 1; y < factors.length; y++) {
-            for (let x = 1; x < factors.length; x++) {
+        for (let y = 1; y <= factors.length; y++) {
+            for (let x = 1; x <= factors.length; x++) {
                 let circ_x = this.grid[0][x];
                 let circ_y = this.grid[y][0];
                 this.grid[y][x].set_eq_x(circ_x.Ax, circ_x.Wx, circ_x.PHx);
@@ -224,9 +239,9 @@ class Table {
         }
     }
 
-    draw(ctx, rad) {
+    draw(ctx, rad, step) {
         // ctx.strokeRect(this.x, this.y, this.padded_size, this.padded_size);
-        this.grid.forEach(row => row.forEach(data => data.draw(ctx, rad)));
+        this.grid.forEach(row => row.forEach(data => data.draw(ctx, rad, step)));
     }
 
     get_maximum_period() {
@@ -240,6 +255,24 @@ class Table {
 }
 
 function Settings() {
+    this.overlay = document.getElementById('overlay');
+    this.overlay.show = () => {
+        this.overlay.style.display = "block";
+    };
+    this.overlay.hide = () => {
+        this.overlay.style.display = "none";
+    };
+
+    this.eq = document.getElementById('equation');
+    this.eq.axis = this.eq.children.axis;
+    this.eq.axis.innerText ="x";
+    this.eq.setEquation = (axis, amplitude, angle_velocity, phase) => {
+        this.eq.children.axis.innerText = axis;
+        this.eq.children.A.value=amplitude;
+        this.eq.children.W.value=angle_velocity;
+        this.eq.children.PH.value=phase;
+    };
+
     this.show_settings = document.getElementById('show_settings');
     this.show_settings.onclick = () => {
         if (this.div_settings.style.display === 'block') {
@@ -299,7 +332,7 @@ class Animation {
         this.factors = factors;
         this.size = 800;
         this.table = new Table(this.size, this.factors);
-        console.log(this.table.get_maximum_period());
+        console.info("Maximum period: " + round_radians(this.table.get_maximum_period()));
 
         this.canvas = document.getElementById("canvas");
         this.ctx = canvas.getContext('2d');
@@ -307,7 +340,7 @@ class Animation {
         this.canvas.style.margin = margin + "px";
         this.canvas.width = this.size;
         this.canvas.height = this.size;
-        window.onload = window.onresize = () => {
+        window.onload /*= window.onresize*/ = () => {
             let canvas_bounds = this.canvas.getBoundingClientRect();
             let w = window.innerWidth - canvas_bounds.x;
             let h = window.innerHeight - canvas_bounds.y;
@@ -330,9 +363,15 @@ class Animation {
             let grid_y = Math.floor(y / this.table.grid_edge_size);
             let grid_x = Math.floor(x / this.table.grid_edge_size);
 
+            /*if (!(grid_x === 0 && grid_y === 0)) {
+                let circle = this.table.grid[grid_y][grid_x];
+
+                console.log("position: " + "[x:" + grid_x + " y:" + grid_y + "] " + circle.get_equation_string());
+            }*/
+
             if ((grid_y === 0 && grid_x > 0) || (grid_x === 0 && grid_y > 0)) {
                 // TODO do this at the beginning or recalculate all lengths, basically do a RESTART animation
-                this.stop(() => {
+                /*this.stop(() => {
                     let circle = this.table.grid[grid_y][grid_x];
 
                     let new_factor = 1;
@@ -360,6 +399,13 @@ class Animation {
 
                     Animation.finished_once = false;
                     console.log(circle);
+                });*/
+                this.stop(() => {
+                    let circle = this.table.grid[grid_y][grid_x];
+                    this.settings.eq.setEquation("x",circle.Ax,circle.Wx,round_radians(circle.PHx));
+                    this.settings.overlay.show();
+
+                    
                 });
             }
         };
@@ -389,7 +435,7 @@ class Animation {
         this.NUM_STEPS = 80;
         this.STEP_SIZE = 2 * Math.PI / this.NUM_STEPS;
 
-        console.log(this.table.grid[0][1].get_equation_string());
+        // console.log(this.table.grid[0][1].get_equation_string());
     }
 
     animation_step() {
@@ -400,7 +446,7 @@ class Animation {
         this.ctx.clearRect(0, 0, canvas.width, canvas.height);
         this.ctx.fillStyle = "white";
         this.ctx.strokeStyle = "white";
-        this.table.draw(this.ctx, this.rad_counter);
+        this.table.draw(this.ctx, this.rad_counter, this.step_counter);
 
         if (this.rad_counter >= this.MAX_LIMIT) {
             this.soft_reset();
@@ -535,6 +581,7 @@ class Animation {
 // TODO explaination thorugh animations
 // TODO BIG change the whole approach, every circle keeps it's own trace even the "intestaion"
 const valid_factors = [1, 1.1, 1.2, 1.25, 1.3, 1.4, 1.5, 1.6, 1.7, 1.9, 1.9, 2];
-const animation = new Animation([1, 1.2, 1.3, 1.4]);
+const animation = new Animation([1, 2, 3, 4]);
+
 setTimeout(animation.start.bind(animation));
-setTimeout(animation.stop.bind(animation), 5000, () => console.info("terminated"));
+// setTimeout(animation.stop.bind(animation), 5000, () => console.info("terminated"));
