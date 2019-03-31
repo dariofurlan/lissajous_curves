@@ -32,7 +32,7 @@ function round_radians(rad) {
     let pi = Math.floor(rad / Math.PI);
     let pi_tenth = Math.floor((rad - Math.PI * pi) / (Math.PI / 10));
     const simbol = "π";
-    return ((pi !== 0) ? '+' + pi + simbol : '') + ((pi_tenth !== 0) ? '+' + ((pi_tenth !== 1) ? pi_tenth : '') + simbol + '/' + 10 : '');
+    return ((pi !== 0) ? pi + simbol : '') + ((pi_tenth !== 0) ? ((pi_tenth !== 1) ? pi_tenth : '') + '/' + 10 + simbol : '');
 }
 
 class Curve {
@@ -42,10 +42,9 @@ class Curve {
         this.start_x = (x) + edge / 2;
         this.start_y = (y) + edge / 2;
         this.start_z = 0; // TODO 3d implementation
-        this.factor = null;
         this.header = false;
-        this.is_y = true;
         this.predrawn = false;
+        this.keep_trace = true;
         this.color = "white";
 
         // TODO calculate the length of the shape given all the params (A, W, Phase) for the functions
@@ -91,11 +90,11 @@ class Curve {
     reset() {
         this.period_x = 2 / this.Wx;
         this.period_y = 2 / this.Wy;
-        this.curve_period = lcm_two_numbers(this.period_x, this.period_y) * Math.PI;
+        this.curve_period = lcm_two_numbers(this.period_x, this.period_y) * Math.PI + Math.PI / 30;
         this.curve_shape = [];
-        this.factor = this.Wx / this.Wy;
+        this.predrawn = false;
+        this.resetted = true;
         // console.log("eq: " + this.get_equation_string());
-        // TODO  reset the figure_shape array and recalculate the end of the drawn figure
     }
 
     x(x) {
@@ -167,7 +166,6 @@ class Curve {
 
         if (!this.predrawn) {
             this.curve_shape.push([this._x, this._y]);
-
             ctx.beginPath();
             ctx.moveTo(...this.curve_shape[0]);
             this.curve_shape.forEach(point => ctx.lineTo(...point));
@@ -264,13 +262,11 @@ function Settings() {
     };
 
     this.eq = document.getElementById('equation');
-    this.eq.axis = this.eq.children.axis;
-    this.eq.axis.innerText ="x";
     this.eq.setEquation = (axis, amplitude, angle_velocity, phase) => {
         this.eq.children.axis.innerText = axis;
-        this.eq.children.A.value=amplitude;
-        this.eq.children.W.value=angle_velocity;
-        this.eq.children.PH.value=phase;
+        this.eq.children.A.value = amplitude;
+        this.eq.children.W.value = angle_velocity;
+        this.eq.children.PH.value = phase;
     };
 
     this.show_settings = document.getElementById('show_settings');
@@ -363,49 +359,35 @@ class Animation {
             let grid_y = Math.floor(y / this.table.grid_edge_size);
             let grid_x = Math.floor(x / this.table.grid_edge_size);
 
-            /*if (!(grid_x === 0 && grid_y === 0)) {
-                let circle = this.table.grid[grid_y][grid_x];
-
-                console.log("position: " + "[x:" + grid_x + " y:" + grid_y + "] " + circle.get_equation_string());
-            }*/
+            let circle = this.table.grid[grid_y][grid_x];
+            console.log("position: " + "[x:" + grid_x + " y:" + grid_y + "] " + circle.get_equation_string() + " len:" + circle.curve_shape.length);
 
             if ((grid_y === 0 && grid_x > 0) || (grid_x === 0 && grid_y > 0)) {
-                // TODO do this at the beginning or recalculate all lengths, basically do a RESTART animation
-                /*this.stop(() => {
-                    let circle = this.table.grid[grid_y][grid_x];
 
-                    let new_factor = 1;
-                    circle.factor = new_factor;
-
-                    if (circle.is_y) {
-                        for (let y = 1; y <= this.factors.length; y++) {
-                            this.trails[y][grid_x] = [];
-                            this.f_trails[y][grid_x] = false;
-                            let new_limit = lcm_two_numbers(new_factor, this.table.grid[y][0].factor);
-                            this.limits[y][grid_x] = new_limit;
-                            if (new_limit > this.MAX_LIMIT)
-                                this.MAX_LIMIT = new_limit;
-                        }
-                    } else {
-                        for (let x = 1; x <= this.factors.length; x++) {
-                            this.trails[grid_y][x] = [];
-                            this.f_trails[grid_y][x] = false;
-                            let new_limit = lcm_two_numbers(new_factor, this.table.grid[0][x].factor);
-                            this.limits[grid_y][x] = new_limit;
-                            if (new_limit > this.MAX_LIMIT)
-                                this.MAX_LIMIT = new_limit;
-                        }
-                    }
-
-                    Animation.finished_once = false;
-                    console.log(circle);
-                });*/
                 this.stop(() => {
-                    let circle = this.table.grid[grid_y][grid_x];
-                    this.settings.eq.setEquation("x",circle.Ax,circle.Wx,round_radians(circle.PHx));
+                    this.settings.eq.setEquation(circle.header, circle.Ax, circle.Wx, round_radians(circle.PHx));
                     this.settings.overlay.show();
 
-                    
+                    this.settings.eq.children.confirm.onclick = () => {
+                        const axis = this.settings.eq.children.axis.innerText;
+                        const ampl = this.settings.eq.children.A.value;
+                        const angle_vel = this.settings.eq.children.W.value;
+                        const phase = this.settings.eq.children.PH.value;
+
+                        if (circle.header === "x") {
+                            // propagate vertically
+                            for (let y = 0; y < this.table.grid[0].length; y++) {
+                                this.table.grid[y][grid_x].set_eq_x(ampl, angle_vel);
+                            }
+                        } else {
+                            // propagagate orizzontally
+                            for (let x = 0; x < this.table.grid[0].length; x++) {
+                                this.table.grid[grid_y][x].set_eq_y(ampl, angle_vel);
+                            }
+                        }
+                        this.settings.overlay.hide();
+                        this.start();
+                    };
                 });
             }
         };
@@ -449,8 +431,32 @@ class Animation {
         this.table.draw(this.ctx, this.rad_counter, this.step_counter);
 
         if (this.rad_counter >= this.MAX_LIMIT) {
+            // let image = this.canvas.toDataURL("image/png");
+            let canvasToImage = (canvas, context, backgroundColor) => {
+                let w = canvas.width;
+                let h = canvas.height;
+                let data;
+                let compositeOperation;
+                if (backgroundColor) {
+                    data = context.getImageData(0, 0, w, h);
+                    compositeOperation = context.globalCompositeOperation;
+                    context.globalCompositeOperation = "destination-over";
+                    context.fillStyle = backgroundColor;
+                    context.fillRect(0, 0, w, h);
+                }
+                let imageData = this.canvas.toDataURL("image/png");
+                if (backgroundColor) {
+                    context.clearRect(0, 0, w, h);
+                    context.putImageData(data, 0, 0);
+                    context.globalCompositeOperation = compositeOperation;
+                }
+                return imageData;
+            };
+            let image = canvasToImage(this.canvas, this.ctx, "black");
+            console.log(image);
+            image = image.replace("image/png", "image/octet-stream");
+            // window.location.href = image;
             this.soft_reset();
-            Animation.finished_once = true;
         }
     }
 
@@ -488,63 +494,7 @@ class Animation {
             window.requestAnimationFrame(this.animation_loop.bind(this));
     }
 
-    draw_trail() {
-        /*if (Animation.finished_once) {
-            for (let y = 1; y <= this.factors.length; y++) {
-                for (let x = 1; x <= this.factors.length; x++) {
-                    let st = this.step_counter % this.trails[y][x].length;
-
-                    let now = this.trails[y][x][st];
-                    let c_x = now[0];
-                    let c_y = now[1];
-
-                    this.ctx.strokeStyle = this.table.grid[y][x].color;
-                    this.ctx.fillStyle = this.table.grid[y][x].color;
-                    this.ctx.lineWidth = 2;
-
-                    this.ctx.beginPath();
-                    this.ctx.arc(c_x, c_y, 4, 0, 2 * Math.PI);
-                    this.ctx.fill();
-
-                    this.ctx.beginPath();
-                    this.ctx.moveTo(...this.trails[y][x][0]);
-                    for (let i = 1; i < ((this.step_counter > st) ? this.trails[y][x].length : st); i++) {
-                        this.ctx.lineTo(...this.trails[y][x][i]);
-                    }
-                    this.ctx.stroke();
-                }
-            }
-        } else {*/
-        for (let y = 1; y <= this.factors.length; y++) {
-            for (let x = 1; x <= this.factors.length; x++) {
-                let c_x = this.table.grid[0][x]._x;
-                let c_y = this.table.grid[y][0]._y;
-
-                if (!this.f_trails[y][x])
-                    if (!(this.trails[y][x].length > ((this.limits[y][x] * this.NUM_STEPS) / (2 * Math.PI)) + 1)) // TODO change this control so that only checks thelength of the trail arrayyy
-                        this.trails[y][x].push([c_x, c_y]);
-                    else
-                        this.f_trails[y][x] = true;
-
-                this.ctx.strokeStyle = this.table.grid[y][x].color;
-                this.ctx.fillStyle = this.table.grid[y][x].color;
-                this.ctx.lineWidth = 2;
-
-
-                this.ctx.beginPath();
-                this.ctx.arc(c_x, c_y, 4, 0, 2 * Math.PI);
-                this.ctx.fill();
-
-                this.ctx.beginPath();
-                this.ctx.moveTo(...this.trails[y][x][0]);
-                this.trails[y][x].forEach(point => this.ctx.lineTo(...point));
-                this.ctx.stroke();
-            }
-        }
-        // }
-    }
-
-    calc_radians() {
+    calc_radians() { // todo use the function used above
         let pi = Math.floor(this.rad_counter / Math.PI);
         let pi_tenth = Math.floor((this.rad_counter - Math.PI * pi) / (Math.PI / 10));
         const simbol = "&pi;";
@@ -571,17 +521,13 @@ class Animation {
         this.rad_counter = 0;
         this.step_counter = 0;
     };
-
-    hard_reset() {
-
-    }
 }
 
 // TODO user customization?
 // TODO explaination thorugh animations
 // TODO BIG change the whole approach, every circle keeps it's own trace even the "intestaion"
 const valid_factors = [1, 1.1, 1.2, 1.25, 1.3, 1.4, 1.5, 1.6, 1.7, 1.9, 1.9, 2];
-const animation = new Animation([1, 2, 3, 4]);
+const animation = new Animation([1, 2, 3]);
 
 setTimeout(animation.start.bind(animation));
 // setTimeout(animation.stop.bind(animation), 5000, () => console.info("terminated"));

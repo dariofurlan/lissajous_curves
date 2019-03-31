@@ -88,7 +88,9 @@ button:hover {
     text-align: center;
     height: auto;
 }
-
+input {
+    font-family: inherit;
+}
 .eq_params {
     width: 30px;
     cursor: pointer;
@@ -99,15 +101,19 @@ button:hover {
     font-weight: bolder;
     text-align: center;
 }
-
+#confirm {
+    margin-top: 20px;
+    display: block;
+    width: 100%;
+}
 #A {
 
 }
 
 #W {
-
+    width: 50px;
 }
 
 #PH {
-
+    width: 80px;
 }
