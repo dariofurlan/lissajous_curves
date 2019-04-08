@@ -1,5 +1,8 @@
 import './style.css';
 
+const VALID_FACTORS = [1, 1.1, 1.2, 1.25, 1.3, 1.4, 1.5, 1.6, 1.7, 1.9, 1.9, 2];
+const MONDRIAN_COLORS = ["#fac901", "#225095", "#dd0100"];
+
 function lcm_two_numbers(x, y) {
     if ((typeof x !== 'number') || (typeof y !== 'number'))
         return false;
@@ -35,9 +38,14 @@ function round_radians(rad) {
     return ((pi !== 0) ? pi + simbol : '') + ((pi_tenth !== 0) ? ((pi_tenth !== 1) ? pi_tenth : '') + '/' + 10 + simbol : '');
 }
 
+function random_mondrian_color() {
+    return MONDRIAN_COLORS[Math.floor(Math.random() * MONDRIAN_COLORS.length)];
+}
+
 class Curve {
     constructor(x, y, edge) {
         this.padding = Math.floor(edge * 0.1);
+        this.original_edge = edge;
         this.edge = edge - 2 * this.padding;
         this.start_x = (x) + edge / 2;
         this.start_y = (y) + edge / 2;
@@ -49,7 +57,6 @@ class Curve {
 
         // TODO calculate the length of the shape given all the params (A, W, Phase) for the functions
         // TODO store the trace and then don't ricalculate it, reuse it
-        // TODO do something to distinguish the "header" circle to the others
 
         this.Ax = this.edge / 2;
         this.Ay = this.edge / 2;
@@ -90,8 +97,14 @@ class Curve {
     reset() {
         this.period_x = 2 / this.Wx;
         this.period_y = 2 / this.Wy;
+        // this.period_z = 2 / this.Wz;
         this.curve_period = lcm_two_numbers(this.period_x, this.period_y) * Math.PI + Math.PI / 30;
+        this.period_x *= Math.PI;
+        this.period_y *= Math.PI;
+        // this.period_z *= Math.PI;
+
         this.curve_shape = [];
+
         this.predrawn = false;
         this.resetted = true;
         // console.log("eq: " + this.get_equation_string());
@@ -151,6 +164,64 @@ class Curve {
         }
 
         this.draw_trail(ctx, rad, step);
+    }
+
+    draw_mondrian(ctx, rad) {
+        // TODO  draw the circle moving
+        // TODO  put in random positions random colors from the mondrian style
+        // TODO
+        if (!this.header)
+            return;
+        let x = this.start_x + this.x(rad);
+        let y = this.start_y + this.y(rad);
+        // let z = this.start_z + this.z(t);
+
+        x = Math.round(x * 100) / 100;
+        y = Math.round(y * 100) / 100;
+        this._x = x;
+        this._y = y;
+
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = "2";
+        if (this.header === "y") {
+            ctx.beginPath();
+            ctx.arc(this.start_x, this.start_y, this.edge / 2, 0, (rad % this.period_y * 2 * Math.PI) / this.period_y);
+            ctx.stroke();
+        } else {
+            ctx.beginPath();
+            ctx.arc(this.start_x, this.start_y, this.edge / 2, 0, (rad % this.period_x * 2 * Math.PI) / this.period_x);
+            ctx.stroke();
+        }
+
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, 2 * Math.PI);
+        ctx.fill();
+
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.setLineDash([2]);
+        if (this.header === "y") {
+            ctx.moveTo(x, y);
+            ctx.lineTo(this.original_edge, y);
+        } else {
+            ctx.moveTo(x, y);
+            ctx.lineTo(x, this.original_edge);
+        }
+        ctx.stroke();
+
+
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.setLineDash([0]);
+        if (this.header === "y") {
+            ctx.moveTo(this.original_edge, y);
+            ctx.lineTo(1000, y);
+        } else {
+            ctx.moveTo(x, this.original_edge);
+            ctx.lineTo(x, 1000);
+        }
+        ctx.stroke();
     }
 
     draw_trail(ctx, t, step) {
@@ -235,11 +306,67 @@ class Table {
                 this.grid[y][x].set_eq_y(circ_y.Ay, circ_y.Wy, circ_y.PHy)
             }
         }
+
+        // MONDIRAN PART
+        const num_mondrian_squares = 4;
+        this.mondrian_squares = [];
+        console.log("num circles " + this.num_circles);
+        for (let i = 0; i < num_mondrian_squares; i++) {
+
+            let sq = {
+                x: Math.floor(Math.random() * (this.num_circles + 1)),
+                y: Math.floor(Math.random() * (this.num_circles + 1)),
+                start: {},
+                end: {}
+            };
+            sq.color = random_mondrian_color();
+
+            if (sq.y === 0) {
+                sq.start.y = this.grid_edge_size;
+                sq.end.y = 0;
+            } else if (sq.y === 4) {
+                sq.start.y = 0;
+                sq.end.y = this.size;
+            } else {
+                sq.start.y = 0;
+                sq.end.y = 0;
+            }
+
+            if (sq.x === 0) {
+                sq.start.x = this.grid_edge_size;
+                sq.end.x = 0;
+            } else if (sq.x === 4) {
+                sq.start.x = 0;
+                sq.end.x = this.size;
+            } else {
+                sq.start.x = 0;
+                sq.end.x = 0;
+            }
+
+            this.mondrian_squares.push(sq);
+        }
+
+        // TODO  precalculate the squares and store the references to the circle object
+
+        console.log(this.mondrian_squares);
+
+        console.info("Maximum period: " + round_radians(this.get_maximum_period()));
     }
 
     draw(ctx, rad, step) {
         // ctx.strokeRect(this.x, this.y, this.padded_size, this.padded_size);
         this.grid.forEach(row => row.forEach(data => data.draw(ctx, rad, step)));
+    }
+
+    draw_mondrian(ctx, rad, step) {
+        ctx.fillStyle = "white";
+        ctx.fillRect(this.grid_edge_size, this.grid_edge_size, this.size, this.size);
+        for (let n = 1; n <= this.num_circles; n++) {
+            this.grid[n][0].draw_mondrian(ctx, rad);
+            this.grid[0][n].draw_mondrian(ctx, rad);
+        }
+
+
     }
 
     get_maximum_period() {
@@ -249,6 +376,13 @@ class Table {
                 max = circle.curve_period;
         }));
         return max;
+    }
+
+    hard_reset() {
+        this.grid.forEach(row => row.forEach(circle => {
+            if (circle)
+                circle.reset();
+        }));
     }
 }
 
@@ -323,20 +457,15 @@ function Settings() {
 }
 
 class Animation {
-    constructor(factors) {
+    constructor(factors, mondrian = false) {
         this.settings = new Settings();
         this.factors = factors;
         this.size = 800;
-        this.table = new Table(this.size, this.factors);
-        console.info("Maximum period: " + round_radians(this.table.get_maximum_period()));
 
         this.canvas = document.getElementById("canvas");
-        this.ctx = canvas.getContext('2d');
-        let margin = Math.floor(this.size * 0.03);
-        this.canvas.style.margin = margin + "px";
-        this.canvas.width = this.size;
-        this.canvas.height = this.size;
+        this.ctx = this.canvas.getContext('2d');
         window.onload /*= window.onresize*/ = () => {
+
             let canvas_bounds = this.canvas.getBoundingClientRect();
             let w = window.innerWidth - canvas_bounds.x;
             let h = window.innerHeight - canvas_bounds.y;
@@ -345,11 +474,14 @@ class Animation {
                 this.size = THRESHOLD;
             else {
                 let tmp = Math.min(w, h);
-                this.size = tmp * 0.9;
+                this.size = tmp;
             }
-            this.canvas.width = this.canvas.heigth = this.size;
+            this.canvas.width = this.canvas.height = this.size;
             // TODO update size of the tables and rest...
             console.log({w, h});
+
+            this.table = new Table(this.size, this.factors);
+            this.MAX_LIMIT = this.table.get_maximum_period();//todo
         };
         this.canvas.onclick = (evt) => {
             let canvas_bounds = this.canvas.getBoundingClientRect();
@@ -386,6 +518,7 @@ class Animation {
                             }
                         }
                         this.settings.overlay.hide();
+                        this.hard_reset();
                         this.start();
                     };
                 });
@@ -413,9 +546,11 @@ class Animation {
         // console.log("LIMITS: \n "+ JSON.stringify(limits));
         // console.log("Simulation Restarts at: " + (max / (Math.PI)));
 
-        this.MAX_LIMIT = this.table.get_maximum_period();//todo
+
         this.NUM_STEPS = 80;
         this.STEP_SIZE = 2 * Math.PI / this.NUM_STEPS;
+
+        this.mondrian = mondrian;
 
         // console.log(this.table.grid[0][1].get_equation_string());
     }
@@ -425,11 +560,13 @@ class Animation {
         this.rad_counter += this.STEP_SIZE;
         this.calc_radians();
 
-        this.ctx.clearRect(0, 0, canvas.width, canvas.height);
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.ctx.fillStyle = "white";
         this.ctx.strokeStyle = "white";
-        this.table.draw(this.ctx, this.rad_counter, this.step_counter);
-
+        if (this.mondrian)
+            this.table.draw_mondrian(this.ctx, this.rad_counter, this.step_counter);
+        else
+            this.table.draw(this.ctx, this.rad_counter, this.step_counter);
         if (this.rad_counter >= this.MAX_LIMIT) {
             // let image = this.canvas.toDataURL("image/png");
             let canvasToImage = (canvas, context, backgroundColor) => {
@@ -453,7 +590,7 @@ class Animation {
                 return imageData;
             };
             let image = canvasToImage(this.canvas, this.ctx, "black");
-            console.log(image);
+            // console.log(image); TODO download image
             image = image.replace("image/png", "image/octet-stream");
             // window.location.href = image;
             this.soft_reset();
@@ -465,7 +602,7 @@ class Animation {
         this.step_counter--;
         this.calc_radians();
 
-        this.ctx.clearRect(0, 0, canvas.width, canvas.height);
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.table.draw(this.ctx, this.rad_counter);
     }
 
@@ -521,13 +658,20 @@ class Animation {
         this.rad_counter = 0;
         this.step_counter = 0;
     };
+
+    hard_reset() {
+        this.soft_reset();
+
+        this.table.hard_reset();
+    }
 }
 
 // TODO user customization?
 // TODO explaination thorugh animations
-// TODO BIG change the whole approach, every circle keeps it's own trace even the "intestaion"
-const valid_factors = [1, 1.1, 1.2, 1.25, 1.3, 1.4, 1.5, 1.6, 1.7, 1.9, 1.9, 2];
-const animation = new Animation([1, 2, 3]);
+// TODO make it start from the right position: "0 rad"
+// TODO choose the number from a list
+
+const animation = new Animation([1, 2, 3, 4], true);
 
 setTimeout(animation.start.bind(animation));
 // setTimeout(animation.stop.bind(animation), 5000, () => console.info("terminated"));
