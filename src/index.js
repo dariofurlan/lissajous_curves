@@ -182,6 +182,7 @@ class Curve {
         this._y = y;
 
         ctx.strokeStyle = "white";
+        ctx.fillStyle = "white";
         ctx.lineWidth = "2";
         if (this.header === "y") {
             ctx.beginPath();
@@ -197,7 +198,7 @@ class Curve {
         ctx.arc(x, y, 4, 0, 2 * Math.PI);
         ctx.fill();
 
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.setLineDash([2]);
         if (this.header === "y") {
@@ -209,9 +210,8 @@ class Curve {
         }
         ctx.stroke();
 
-
         ctx.strokeStyle = "black";
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 5;
         ctx.beginPath();
         ctx.setLineDash([0]);
         if (this.header === "y") {
@@ -308,11 +308,15 @@ class Table {
         }
 
         // MONDIRAN PART
-        const num_mondrian_squares = 4;
-        this.mondrian_squares = [];
-        console.log("num circles " + this.num_circles);
-        for (let i = 0; i < num_mondrian_squares; i++) {
+        this.num_mondrian_squares = Math.round(Math.pow(this.num_circles,2)/1.8);
+        this.generate_mondrian();
 
+        console.info("Maximum period: " + round_radians(this.get_maximum_period()));
+    }
+
+    generate_mondrian() {
+        this.mondrian_squares = [];
+        for (let i = 0; i < this.num_mondrian_squares; i++) {
             let sq = {
                 x: Math.floor(Math.random() * (this.num_circles + 1)),
                 y: Math.floor(Math.random() * (this.num_circles + 1)),
@@ -320,37 +324,28 @@ class Table {
                 end: {}
             };
             sq.color = random_mondrian_color();
-
             if (sq.y === 0) {
-                sq.start.y = this.grid_edge_size;
-                sq.end.y = 0;
-            } else if (sq.y === 4) {
-                sq.start.y = 0;
-                sq.end.y = this.size;
+                sq.start.y = () => this.grid_edge_size;
+                sq.end.y = () => this.grid[sq.y + 1][0]._y;
+            } else if (sq.y >= this.num_circles) {
+                sq.start.y = () => this.grid[sq.y][0]._y;
+                sq.end.y = () => this.size;
             } else {
-                sq.start.y = 0;
-                sq.end.y = 0;
+                sq.start.y = () => this.grid[sq.y][0]._y;
+                sq.end.y = () => this.grid[sq.y + 1][0]._y;
             }
-
             if (sq.x === 0) {
-                sq.start.x = this.grid_edge_size;
-                sq.end.x = 0;
-            } else if (sq.x === 4) {
-                sq.start.x = 0;
-                sq.end.x = this.size;
+                sq.start.x = () => this.grid_edge_size;
+                sq.end.x = () => this.grid[0][sq.x + 1]._x;
+            } else if (sq.x >= this.num_circles) {
+                sq.start.x = () => this.grid[0][sq.x]._x;
+                sq.end.x = () => this.size;
             } else {
-                sq.start.x = 0;
-                sq.end.x = 0;
+                sq.start.x = () => this.grid[0][sq.x]._x;
+                sq.end.x = () => this.grid[0][sq.x + 1]._x;
             }
-
             this.mondrian_squares.push(sq);
         }
-
-        // TODO  precalculate the squares and store the references to the circle object
-
-        console.log(this.mondrian_squares);
-
-        console.info("Maximum period: " + round_radians(this.get_maximum_period()));
     }
 
     draw(ctx, rad, step) {
@@ -361,6 +356,12 @@ class Table {
     draw_mondrian(ctx, rad, step) {
         ctx.fillStyle = "white";
         ctx.fillRect(this.grid_edge_size, this.grid_edge_size, this.size, this.size);
+
+        this.mondrian_squares.forEach(sq => {
+            ctx.fillStyle = sq.color;
+            ctx.fillRect(sq.start.x(), sq.start.y(), sq.end.x() - sq.start.x(), sq.end.y() - sq.start.y());
+        });
+
         for (let n = 1; n <= this.num_circles; n++) {
             this.grid[n][0].draw_mondrian(ctx, rad);
             this.grid[0][n].draw_mondrian(ctx, rad);
@@ -387,6 +388,8 @@ class Table {
 }
 
 function Settings() {
+    this.mondrian = document.getElementById('btn-mondrian');
+
     this.overlay = document.getElementById('overlay');
     this.overlay.show = () => {
         this.overlay.style.display = "block";
@@ -460,7 +463,6 @@ class Animation {
     constructor(factors, mondrian = false) {
         this.settings = new Settings();
         this.factors = factors;
-        this.size = 800;
 
         this.canvas = document.getElementById("canvas");
         this.ctx = this.canvas.getContext('2d');
@@ -469,12 +471,11 @@ class Animation {
             let canvas_bounds = this.canvas.getBoundingClientRect();
             let w = window.innerWidth - canvas_bounds.x;
             let h = window.innerHeight - canvas_bounds.y;
-            let THRESHOLD = 800;
+            let THRESHOLD = 870;
             if (w > THRESHOLD && h > THRESHOLD)
                 this.size = THRESHOLD;
             else {
-                let tmp = Math.min(w, h);
-                this.size = tmp;
+                this.size = Math.min(w, h);
             }
             this.canvas.width = this.canvas.height = this.size;
             // TODO update size of the tables and rest...
@@ -551,7 +552,17 @@ class Animation {
         this.STEP_SIZE = 2 * Math.PI / this.NUM_STEPS;
 
         this.mondrian = mondrian;
-
+        this.settings.mondrian.onclick = () => {
+            if (this.mondrian) {
+                this.settings.mondrian.innerText = "Mondrian";
+                this.mondrian = false;
+            } else {
+                this.settings.mondrian.innerText = "Lissajous";
+                this.table.generate_mondrian();
+                this.mondrian = true;
+            }
+            this.hard_reset();
+        }
         // console.log(this.table.grid[0][1].get_equation_string());
     }
 
@@ -671,7 +682,7 @@ class Animation {
 // TODO make it start from the right position: "0 rad"
 // TODO choose the number from a list
 
-const animation = new Animation([1, 2, 3, 4], true);
+const animation = new Animation([1.5, 1.3, 2, 3, 4]);
 
 setTimeout(animation.start.bind(animation));
 // setTimeout(animation.stop.bind(animation), 5000, () => console.info("terminated"));

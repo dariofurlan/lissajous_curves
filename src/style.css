@@ -24,6 +24,7 @@ body {
 }
 
 button {
+    font-family: inherit;
     border: 1px solid white;
     border-radius: 5px;
     color: white;
@@ -72,13 +73,13 @@ button:hover {
     background-color: rgba(0, 0, 0, .7);
 }
 
-#equation{
+#equation {
     position: absolute;
     top: 50%;
     left: 50%;
     color: white;
-    transform: translate(-50%,-50%);
-    -ms-transform: translate(-50%,-50%);
+    transform: translate(-50%, -50%);
+    -ms-transform: translate(-50%, -50%);
 }
 
 .settings_box {
@@ -88,9 +89,11 @@ button:hover {
     text-align: center;
     height: auto;
 }
+
 input {
     font-family: inherit;
 }
+
 .eq_params {
     width: 30px;
     cursor: pointer;
@@ -101,11 +104,13 @@ input {
     font-weight: bolder;
     text-align: center;
 }
+
 #confirm {
     margin-top: 20px;
     display: block;
     width: 100%;
 }
+
 #A {
 
 }
@@ -116,4 +121,20 @@ input {
 
 #PH {
     width: 80px;
+}
+
+.extras {
+    display: block;
+    width: 100%;
+    text-align: center;
+}
+
+#btn-mondrian {
+    font-size: 1.3em;
+}
+
+#overlay_copyright {
+    position: absolute;
+    bottom: 0;
+    right:0;
 }
