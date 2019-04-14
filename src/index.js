@@ -1,7 +1,63 @@
 import './style.css';
+import * as EventEmitter from 'events';
 
-const VALID_FACTORS = [1, 1.1, 1.2, 1.25, 1.3, 1.4, 1.5, 1.6, 1.7, 1.9, 1.9, 2];
+const VALID_FACTORS = {
+    "1/10": 1 / 10,
+    "1/9": 1 / 9,
+    "1/8": 1 / 8,
+    "1/7": 1 / 7,
+    "1/6": 1 / 6,
+    "1/5": 1 / 5,
+    "1/4": 1 / 4,
+    "1/3": 1 / 3,
+    "1/2": 1 / 2,
+    "0.1": .1,
+    "0.2": .2,
+    "0.3": .3,
+    "0.4": .4,
+    "0.5": .5,
+    "0.6": .6,
+    "0.7": .7,
+    "0.8": .8,
+    "0.9": .9,
+    "1": 1,
+    "1.1": 1.1,
+    "1.2": 1.2,
+    "1.3": 1.3,
+    "1.4": 1.4,
+    "1.5": 1.5,
+    "1.6": 1.6,
+    "1.7": 1.7,
+    "1.8": 1.8,
+    "1.9": 1.9,
+};
 const MONDRIAN_COLORS = ["#fac901", "#225095", "#dd0100"];
+
+function choose_factor(x, y, id) {
+    function createOption(key, value) {
+        const option = document.createElement('option');
+        option.value = value;
+        option.innerText = key;
+        return option;
+    }
+
+    const select = document.createElement('select');
+    let canvas = document.getElementById('canvas');
+    let offsetLeft = canvas.offsetLeft;
+    let offsetTop = canvas.offsetTop;
+    select.id = id;
+    select.className = "select_factor";
+    select.style.position = "absolute";
+    console.log(select);
+    select.style.zIndex = "2";
+    document.getElementById('overlay_select').appendChild(select);
+    for (let key in VALID_FACTORS) {
+        select.appendChild(createOption(key, VALID_FACTORS[key]));
+    }
+    select.style.top = (offsetTop + y - select.clientHeight/2) + "px";
+    select.style.left = (offsetLeft + x - select.clientWidth/2) + "px";
+    return select;
+}
 
 function lcm_two_numbers(x, y) {
     if ((typeof x !== 'number') || (typeof y !== 'number'))
@@ -47,16 +103,13 @@ class Curve {
         this.padding = Math.floor(edge * 0.1);
         this.original_edge = edge;
         this.edge = edge - 2 * this.padding;
-        this.start_x = (x) + edge / 2;
-        this.start_y = (y) + edge / 2;
+        this.start_x = x + (edge / 2);
+        this.start_y = y + (edge / 2);
         this.start_z = 0; // TODO 3d implementation
         this.header = false;
         this.predrawn = false;
         this.keep_trace = true;
         this.color = "white";
-
-        // TODO calculate the length of the shape given all the params (A, W, Phase) for the functions
-        // TODO store the trace and then don't ricalculate it, reuse it
 
         this.Ax = this.edge / 2;
         this.Ay = this.edge / 2;
@@ -71,6 +124,10 @@ class Curve {
         this.PHz = 0;
 
         this.reset();
+    }
+
+    set_select_factor(id) {
+        this.select = choose_factor(this.start_x, this.start_y, id);
     }
 
     set_eq_x(a, w, phase) {
@@ -167,9 +224,6 @@ class Curve {
     }
 
     draw_mondrian(ctx, rad) {
-        // TODO  draw the circle moving
-        // TODO  put in random positions random colors from the mondrian style
-        // TODO
         if (!this.header)
             return;
         let x = this.start_x + this.x(rad);
@@ -259,8 +313,9 @@ class Curve {
     }
 }
 
-class Table {
+class Table extends EventEmitter {
     constructor(size, factors) {
+        super();
         this.factors = factors;
         this.colors = ['#ffee58', '#f06292', '#ff7043', '#9ccc65', '#4fc3f7'];
         this.size = size;
@@ -281,21 +336,40 @@ class Table {
             }
         }
 
-        // TODO set the "header" circles and then propagate to rows and columns
         for (let i = 1; i <= this.num_circles; i++) {
-            let factor = 1 / factors[i - 1];
+            let factor = factors[i - 1];
 
             let circ_x = this.grid[0][i];
             circ_x.header = "x";
+            circ_x.set_select_factor("x" + "-" + i);
             circ_x.color = "#FFFFFF";
             circ_x.set_eq_x(null, factor);
             circ_x.set_eq_y(null, factor);
+            circ_x.select.onchange = (evt) => {
+                circ_x.set_eq_x(null, evt.target.value);
+                circ_x.set_eq_y(null, evt.target.value);
+                // aggiornare verticalmente
+                for (let y = 1; y <= this.num_circles; y++) {
+                    this.grid[y][i].set_eq_x(null, evt.target.value);
+                }
+                this.emit("hard_reset");
+            };
 
             let circ_y = this.grid[i][0];
             circ_y.header = "y";
+            circ_y.set_select_factor("y" + "-" + i);
             circ_y.color = "#FFFFFF";
             circ_y.set_eq_x(null, factor);
             circ_y.set_eq_y(null, factor);
+            circ_y.select.onchange = (evt) => {
+                circ_y.set_eq_x(null, evt.target.value);
+                circ_y.set_eq_y(null, evt.target.value);
+                // aggiornare orizzontalmente
+                for (let x = 1; x <= this.num_circles; x++) {
+                    this.grid[i][x].set_eq_y(null, evt.target.value);
+                }
+                this.emit("hard_reset");
+            };
         }
 
         for (let y = 1; y <= factors.length; y++) {
@@ -308,10 +382,8 @@ class Table {
         }
 
         // MONDIRAN PART
-        this.num_mondrian_squares = Math.round(Math.pow(this.num_circles,2)/1.8);
+        this.num_mondrian_squares = Math.round(Math.pow(this.num_circles, 2) / 1.8);
         this.generate_mondrian();
-
-        console.info("Maximum period: " + round_radians(this.get_maximum_period()));
     }
 
     generate_mondrian() {
@@ -460,14 +532,13 @@ function Settings() {
 }
 
 class Animation {
-    constructor(factors, mondrian = false) {
+    constructor(factors) {
         this.settings = new Settings();
         this.factors = factors;
 
         this.canvas = document.getElementById("canvas");
         this.ctx = this.canvas.getContext('2d');
         window.onload /*= window.onresize*/ = () => {
-
             let canvas_bounds = this.canvas.getBoundingClientRect();
             let w = window.innerWidth - canvas_bounds.x;
             let h = window.innerHeight - canvas_bounds.y;
@@ -478,52 +549,13 @@ class Animation {
                 this.size = Math.min(w, h);
             }
             this.canvas.width = this.canvas.height = this.size;
-            // TODO update size of the tables and rest...
             console.log({w, h});
 
             this.table = new Table(this.size, this.factors);
-            this.MAX_LIMIT = this.table.get_maximum_period();//todo
-        };
-        this.canvas.onclick = (evt) => {
-            let canvas_bounds = this.canvas.getBoundingClientRect();
-            let x = evt.clientX - canvas_bounds.x;
-            let y = evt.clientY - canvas_bounds.y;
-
-            let grid_y = Math.floor(y / this.table.grid_edge_size);
-            let grid_x = Math.floor(x / this.table.grid_edge_size);
-
-            let circle = this.table.grid[grid_y][grid_x];
-            console.log("position: " + "[x:" + grid_x + " y:" + grid_y + "] " + circle.get_equation_string() + " len:" + circle.curve_shape.length);
-
-            if ((grid_y === 0 && grid_x > 0) || (grid_x === 0 && grid_y > 0)) {
-
-                this.stop(() => {
-                    this.settings.eq.setEquation(circle.header, circle.Ax, circle.Wx, round_radians(circle.PHx));
-                    this.settings.overlay.show();
-
-                    this.settings.eq.children.confirm.onclick = () => {
-                        const axis = this.settings.eq.children.axis.innerText;
-                        const ampl = this.settings.eq.children.A.value;
-                        const angle_vel = this.settings.eq.children.W.value;
-                        const phase = this.settings.eq.children.PH.value;
-
-                        if (circle.header === "x") {
-                            // propagate vertically
-                            for (let y = 0; y < this.table.grid[0].length; y++) {
-                                this.table.grid[y][grid_x].set_eq_x(ampl, angle_vel);
-                            }
-                        } else {
-                            // propagagate orizzontally
-                            for (let x = 0; x < this.table.grid[0].length; x++) {
-                                this.table.grid[grid_y][x].set_eq_y(ampl, angle_vel);
-                            }
-                        }
-                        this.settings.overlay.hide();
-                        this.hard_reset();
-                        this.start();
-                    };
-                });
-            }
+            this.table.on('hard_reset', () => {
+                this.hard_reset();
+            });
+            this.MAX_LIMIT = this.table.get_maximum_period();
         };
 
         this.settings.animation_forward.onclick = () => {
@@ -544,14 +576,10 @@ class Animation {
 
         this.frames = 0, this.sec = 0, this.fps = 0, this.rad_counter = 0, this.step_counter = 0;
 
-        // console.log("LIMITS: \n "+ JSON.stringify(limits));
-        // console.log("Simulation Restarts at: " + (max / (Math.PI)));
-
-
         this.NUM_STEPS = 80;
         this.STEP_SIZE = 2 * Math.PI / this.NUM_STEPS;
 
-        this.mondrian = mondrian;
+        this.mondrian = false;
         this.settings.mondrian.onclick = () => {
             if (this.mondrian) {
                 this.settings.mondrian.innerText = "Mondrian";
@@ -672,8 +700,9 @@ class Animation {
 
     hard_reset() {
         this.soft_reset();
-
         this.table.hard_reset();
+        this.MAX_LIMIT = this.table.get_maximum_period();
+        console.info("Maximum period: " + round_radians(this.MAX_LIMIT));
     }
 }
 
@@ -682,7 +711,7 @@ class Animation {
 // TODO make it start from the right position: "0 rad"
 // TODO choose the number from a list
 
-const animation = new Animation([1.5, 1.3, 2, 3, 4]);
+const animation = new Animation([1, 1 / 2, 1 / 3, 1 / 4]);
 
 setTimeout(animation.start.bind(animation));
 // setTimeout(animation.stop.bind(animation), 5000, () => console.info("terminated"));

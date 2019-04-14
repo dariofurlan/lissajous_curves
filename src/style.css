@@ -4,11 +4,7 @@ canvas {
     margin: 0 auto;
 }
 
-canvas:hover {
-    cursor: pointer;
-}
-
-.canvas_container {
+#canvas_container {
     width: 100%;
     display: block;
     text-align: center;
@@ -136,5 +132,20 @@ input {
 #overlay_copyright {
     position: absolute;
     bottom: 0;
-    right:0;
+    right: 0;
+}
+
+.select_factor {
+    text-align: center;
+    width: 10vmin;
+    background: inherit;
+    border-radius: 0;
+    font-size: 4vmin;
+    background-color: transparent;
+    color: inherit;
+    border: 0 solid transparent;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    cursor: pointer;
 }
