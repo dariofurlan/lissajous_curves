@@ -11,9 +11,6 @@
 <body>
 <div id="overlay">
     <div id="equation">
-        <span id="axis">y</span>
-        = <input type="text" class="eq_params" id="A" maxlength="2" value="1">sin(<input type="text" class="eq_params" id="W" maxlength="1">x +<input type="text" class="eq_params" maxlength="1" id="PH" readonly>)
-        <button id="confirm">Confirm</button>
     </div>
 </div>
 <div id="overlay_copyright">Dario Furlan &copy; __YEAR__</div>
@@ -21,18 +18,16 @@
 <div id="canvas_container"><canvas id="canvas"></canvas></div>
 <div class="footer">
     <div class="div_show_settings"><span id="show_settings">show settings</span></div>
+    <div class="extras"><button id="btn-mondrian">Mondrian</button></div>
     <div class="settings_box" hidden="hidden" id="div_settings">
-        Circle:<input type="checkbox" id="circle_circle"/>
         Lines:<input type="checkbox" id="circle_line"/>
         Dot:<input type="checkbox" id="circle_dot"/>
-        FPS:<input type="checkbox" id="fps"/>
-        <button id="animation_stop"></button>
         <button id="animation_backward"></button>
+        <button id="animation_stop"></button>
         <button id="animation_forward"></button>
         radians:<span id="radians_indicator"></span>
         steps:<span id="steps_indicator"></span>
     </div>
-    <div class="extras"><button id="btn-mondrian">Mondrian</button></div>
 </div>
 </body>
 </html>

@@ -23,7 +23,9 @@ const VALID_FACTORS = {
     "1": 1,
     "1.1": 1.1,
     "1.2": 1.2,
+    "1.25": 1.25,
     "1.3": 1.3,
+    "1.33..": 1 + 1 / 3,
     "1.4": 1.4,
     "1.5": 1.5,
     "1.6": 1.6,
@@ -33,11 +35,12 @@ const VALID_FACTORS = {
 };
 const MONDRIAN_COLORS = ["#fac901", "#225095", "#dd0100"];
 
-function choose_factor(x, y, id) {
+function create_select_factor(x, y) {
     function createOption(key, value) {
         const option = document.createElement('option');
         option.value = value;
         option.innerText = key;
+        option.id = key;
         return option;
     }
 
@@ -45,17 +48,15 @@ function choose_factor(x, y, id) {
     let canvas = document.getElementById('canvas');
     let offsetLeft = canvas.offsetLeft;
     let offsetTop = canvas.offsetTop;
-    select.id = id;
     select.className = "select_factor";
     select.style.position = "absolute";
-    console.log(select);
     select.style.zIndex = "2";
     document.getElementById('overlay_select').appendChild(select);
     for (let key in VALID_FACTORS) {
         select.appendChild(createOption(key, VALID_FACTORS[key]));
     }
-    select.style.top = (offsetTop + y - select.clientHeight/2) + "px";
-    select.style.left = (offsetLeft + x - select.clientWidth/2) + "px";
+    select.style.top = (offsetTop + y - select.clientHeight / 2) + "px";
+    select.style.left = (offsetLeft + x - select.clientWidth / 2) + "px";
     return select;
 }
 
@@ -126,8 +127,8 @@ class Curve {
         this.reset();
     }
 
-    set_select_factor(id) {
-        this.select = choose_factor(this.start_x, this.start_y, id);
+    set_select_factor() {
+        this.select = create_select_factor(this.start_x, this.start_y);
     }
 
     set_eq_x(a, w, phase) {
@@ -159,6 +160,9 @@ class Curve {
         this.period_x *= Math.PI;
         this.period_y *= Math.PI;
         // this.period_z *= Math.PI;
+        if (this.header) {
+
+        }
 
         this.curve_shape = [];
 
@@ -472,10 +476,7 @@ function Settings() {
 
     this.eq = document.getElementById('equation');
     this.eq.setEquation = (axis, amplitude, angle_velocity, phase) => {
-        this.eq.children.axis.innerText = axis;
-        this.eq.children.A.value = amplitude;
-        this.eq.children.W.value = angle_velocity;
-        this.eq.children.PH.value = phase;
+        this.eq.innerText = axis + " = "; // todo
     };
 
     this.show_settings = document.getElementById('show_settings');
@@ -497,29 +498,17 @@ function Settings() {
         Curve.drawLine = event.target.checked;
     };
 
-    this.circle_circle = document.getElementById('circle_circle');
-    Curve.drawCircle = this.circle_circle.checked = true;
-    this.circle_circle.onchange = (event) => {
-        Curve.drawCircle = event.target.checked;
-    };
-
     this.circle_dot = document.getElementById('circle_dot');
     Curve.drawDot = this.circle_dot.checked = true;
     this.circle_dot.onchange = (event) => {
         Curve.drawDot = event.target.checked;
     };
 
-    this.fps = document.getElementById('fps');
-    Animation.drawFPS = this.fps.checked = false;
-    this.fps.onchange = (event) => {
-        Animation.drawFPS = event.target.checked;
-    };
-
     this.animation_stop = document.getElementById('animation_stop');
-    this.animation_stop.innerText = "PAUSE";
+    this.animation_stop.innerHTML = "&#9646;&#9646;";
 
     this.animation_forward = document.getElementById('animation_forward');
-    this.animation_forward.innerHTML = ">";
+    this.animation_forward.innerText = ">";
 
     this.animation_backward = document.getElementById('animation_backward');
     this.animation_backward.innerText = "<";
@@ -555,7 +544,6 @@ class Animation {
             this.table.on('hard_reset', () => {
                 this.hard_reset();
             });
-            this.MAX_LIMIT = this.table.get_maximum_period();
         };
 
         this.settings.animation_forward.onclick = () => {
@@ -567,14 +555,14 @@ class Animation {
         this.settings.animation_stop.onclick = () => {
             if (this.running) {
                 this.stop();
-                this.settings.animation_stop.innerText = "START";
+                this.settings.animation_stop.innerHTML = "&#9654;&nbsp;";
             } else {
                 this.start();
-                this.settings.animation_stop.innerText = "PAUSE";
+                this.settings.animation_stop.innerHTML = "&#9646;&#9646;";
             }
         };
 
-        this.frames = 0, this.sec = 0, this.fps = 0, this.rad_counter = 0, this.step_counter = 0;
+        this.sec = this.rad_counter = this.step_counter = 0;
 
         this.NUM_STEPS = 80;
         this.STEP_SIZE = 2 * Math.PI / this.NUM_STEPS;
@@ -647,23 +635,9 @@ class Animation {
 
     animation_loop(timestamp) {
         this.animation_step();
-        this.frames++;
-        if (Animation.drawFPS) { // TODO draw fps only if different from previous
-            this.ctx.font = '1.2em Courier New';
-            if (this.fps <= 50)
-                this.ctx.fillStyle = "red";
-            else if (this.fps <= 55)
-                this.ctx.fillStyle = "orange";
-            else
-                this.ctx.fillStyle = "white";
-            this.ctx.fillText(this.fps, 5, 20);
-            this.ctx.fillStyle = "black";
-        }
         let now = Math.floor(timestamp / 1000);
         if (now !== this.sec) {
-            console.log("sec: " + this.sec + " fps: " + this.frames);
-            this.fps = this.frames;
-            this.frames = 0;
+            console.log("sec: " + this.sec + " radians: " + round_radians(this.rad_counter));
             this.sec = now;
         }
         if (this.running)
@@ -691,9 +665,7 @@ class Animation {
 
     soft_reset() {
         console.log("Animation Started");
-        this.frames = 0;
         this.sec = 0;
-        this.fps = 0;
         this.rad_counter = 0;
         this.step_counter = 0;
     };
@@ -710,6 +682,7 @@ class Animation {
 // TODO explaination thorugh animations
 // TODO make it start from the right position: "0 rad"
 // TODO choose the number from a list
+// TODO  same color for same figures
 
 const animation = new Animation([1, 1 / 2, 1 / 3, 1 / 4]);
 
