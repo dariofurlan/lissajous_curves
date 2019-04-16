@@ -32,10 +32,6 @@ button:hover {
     color: black;
 }
 
-.footer {
-    width: 100%;
-}
-
 #show_settings {
     font-size: 1em;
     color: darkgray;
@@ -50,9 +46,17 @@ button:hover {
     z-index: 1;
 }
 
+#time-controls {
+    padding-top: 1vmin;
+    padding-bottom: 1vmin;
+    display: block;
+    width: 100%;
+    text-align: center;
+}
+
 .div_show_settings {
     width: 100%;
-    position: absolute;
+    position: fixed;
     left: 0;
     bottom: 0;
     display: block;
@@ -89,24 +93,6 @@ button:hover {
     height: auto;
 }
 
-#confirm {
-    margin-top: 20px;
-    display: block;
-    width: 100%;
-}
-
-#A {
-
-}
-
-#W {
-    width: 50px;
-}
-
-#PH {
-    width: 80px;
-}
-
 .extras {
     display: block;
     width: 100%;
@@ -114,26 +100,27 @@ button:hover {
 }
 
 #btn-mondrian {
-    font-size: 5vmin;
+    font-size: 1.5em;
 }
 
 #overlay_copyright {
-    position: absolute;
+    position: fixed;
     bottom: 0;
     right: 0;
+    z-index: 99;
 }
 
 .select_factor {
     text-align: center;
-    width: 10vmin;
+    width: auto;
+    position: absolute;
     background: inherit;
     border-radius: 0;
-    font-size: 4vmin;
+    font-size: 2em;
     background-color: transparent;
     color: inherit;
     border: 0 solid transparent;
     -webkit-appearance: none;
     -moz-appearance: none;
-    appearance: none;
     cursor: pointer;
 }

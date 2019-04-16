@@ -49,9 +49,8 @@ function create_select_factor(x, y) {
     let offsetLeft = canvas.offsetLeft;
     let offsetTop = canvas.offsetTop;
     select.className = "select_factor";
-    select.style.position = "absolute";
     select.style.zIndex = "2";
-    document.getElementById('overlay_select').appendChild(select);
+    document.getElementById('select_factors_grid').appendChild(select);
     for (let key in VALID_FACTORS) {
         select.appendChild(createOption(key, VALID_FACTORS[key]));
     }
@@ -386,7 +385,7 @@ class Table extends EventEmitter {
         }
 
         // MONDIRAN PART
-        this.num_mondrian_squares = Math.round(Math.pow(this.num_circles, 2) / 1.8);
+        this.num_mondrian_squares = Math.round(Math.pow(this.num_circles, 2) / 1.5);
         this.generate_mondrian();
     }
 
@@ -493,13 +492,13 @@ function Settings() {
     this.div_settings = document.getElementById('div_settings');
 
     this.circle_line = document.getElementById('circle_line');
-    Curve.drawLine = this.circle_line.checked = true;
+    Curve.drawLine = this.circle_line.checked = false;
     this.circle_line.onchange = (event) => {
         Curve.drawLine = event.target.checked;
     };
 
     this.circle_dot = document.getElementById('circle_dot');
-    Curve.drawDot = this.circle_dot.checked = true;
+    Curve.drawDot = this.circle_dot.checked = false;
     this.circle_dot.onchange = (event) => {
         Curve.drawDot = event.target.checked;
     };
@@ -531,7 +530,7 @@ class Animation {
             let canvas_bounds = this.canvas.getBoundingClientRect();
             let w = window.innerWidth - canvas_bounds.x;
             let h = window.innerHeight - canvas_bounds.y;
-            let THRESHOLD = 870;
+            let THRESHOLD = 1000;
             if (w > THRESHOLD && h > THRESHOLD)
                 this.size = THRESHOLD;
             else {
@@ -544,6 +543,7 @@ class Animation {
             this.table.on('hard_reset', () => {
                 this.hard_reset();
             });
+            this.hard_reset();
         };
 
         this.settings.animation_forward.onclick = () => {
@@ -555,14 +555,12 @@ class Animation {
         this.settings.animation_stop.onclick = () => {
             if (this.running) {
                 this.stop();
-                this.settings.animation_stop.innerHTML = "&#9654;&nbsp;";
+                this.settings.animation_stop.innerHTML = "&#9654;";
             } else {
                 this.start();
                 this.settings.animation_stop.innerHTML = "&#9646;&#9646;";
             }
         };
-
-        this.sec = this.rad_counter = this.step_counter = 0;
 
         this.NUM_STEPS = 80;
         this.STEP_SIZE = 2 * Math.PI / this.NUM_STEPS;
@@ -583,10 +581,6 @@ class Animation {
     }
 
     animation_step() {
-        this.step_counter++;
-        this.rad_counter += this.STEP_SIZE;
-        this.calc_radians();
-
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.ctx.fillStyle = "white";
         this.ctx.strokeStyle = "white";
@@ -622,6 +616,9 @@ class Animation {
             // window.location.href = image;
             this.soft_reset();
         }
+        this.step_counter++;
+        this.rad_counter += this.STEP_SIZE;
+        this.calc_radians();
     }
 
     animation_backward() {
@@ -665,9 +662,7 @@ class Animation {
 
     soft_reset() {
         console.log("Animation Started");
-        this.sec = 0;
-        this.rad_counter = 0;
-        this.step_counter = 0;
+        this.sec = this.rad_counter = this.step_counter = 0;
     };
 
     hard_reset() {
@@ -678,11 +673,10 @@ class Animation {
     }
 }
 
-// TODO user customization?
 // TODO explaination thorugh animations
-// TODO make it start from the right position: "0 rad"
-// TODO choose the number from a list
-// TODO  same color for same figures
+// TODO  same color for same factor<s
+// TODO merge nearby same colors in mondrian
+// TODO touch and show the equation behind it
 
 const animation = new Animation([1, 1 / 2, 1 / 3, 1 / 4]);
 
